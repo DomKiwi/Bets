@@ -43,3 +43,4 @@ print(pd.DataFrame.from_dict(Puntos, orient='index', columns=['Puntos']))
 # print(pd.DataFrame.from_dict(Victorias, orient='index', columns=['Wins']))
 
 
+print("hola")
