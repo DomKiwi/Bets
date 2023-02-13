@@ -20,9 +20,7 @@ class Equipo:
     afavor = 0
     encontra = 0
     equiposQueHaGanado = []
-    puntosDeFuerza = len(equiposQueHaGanado)
     equiposQueHaPerdido = []
-    puntosDeDebilidad = len(equiposQueHaPerdido)
     equiposQueHaEmpatado = []
     puntosGanados = 0
     puntosPerdidos = 0
@@ -35,31 +33,41 @@ class Equipo:
     minimosGolesEnContra = 0
     mediaGolPorPartidoMarcados = 0
     mediaGolPorPartidoEnContra = 0
+    puntosDeFuerza = len(equiposQueHaGanado)
+    puntosDeDebilidad = len(equiposQueHaPerdido)
+    equiposQueHaEmpatadoNombre = []
+    equiposQueHaGanadoNombre = []
+    equiposQueHaPerdidoNombre = []
+
+    def calculateData(self):
+        self.puntosDeFuerza = len(self.equiposQueHaGanado)
+        self.puntosDeDebilidad = len(self.equiposQueHaPerdido)
+        self.equiposQueHaGanadoNombre = [tm.name for tm in self.equiposQueHaGanado]
+        self.equiposQueHaPerdidoNombre = [tm.name for tm in self.equiposQueHaPerdido]
+        self.equiposQueHaEmpatadoNombre = [tm.name for tm in self.equiposQueHaEmpatado]
 
     def getDataframe(self):  # de los valores que estoy trabajando, los meto en un dataframe para manejarlos mejor
-        self.puntosDeDebilidad = len(self.equiposQueHaPerdido)
-        self.puntosDeFuerza = len(self.equiposQueHaGanado)
         recopilacionequipo = [
             self.columnaPosiciones,
             self.name,
             self.puntos,
-            partidos,
-            wins,
-            draws,
-            loses,
-            afavor,
-            encontra,
-            equiposQueHaGanado,
-            self.equiposQueHaPerdido,
-            equiposQueHaEmpatado,
-            golesAfavorUltimasJornadas,
-            golesEncontraUltimasJornadas,
-            maximosGoles,
-            minimosGoles,
-            maximosGolesEnContra,
-            minimosGolesEnContra,
-            mediaGolPorPartidoMarcados,
-            mediaGolPorPartidoEnContra,
+            self.partidos,
+            self.wins,
+            self.draws,
+            self.loses,
+            self.afavor,
+            self.encontra,
+            self.equiposQueHaGanadoNombre,
+            self.equiposQueHaPerdidoNombre,
+            self.equiposQueHaEmpatadoNombre,
+            self.golesAfavorUltimasJornadas,
+            self.golesEncontraUltimasJornadas,
+            self.maximosGoles,
+            self.minimosGoles,
+            self.maximosGolesEnContra,
+            self.minimosGolesEnContra,
+            self.mediaGolPorPartidoMarcados,
+            self.mediaGolPorPartidoEnContra,
             self.puntosDeFuerza,
             self.puntosDeDebilidad
                               ]
@@ -109,7 +117,6 @@ blockquote_items = soup.find('table', {'id': 'tabla2'})
 blockquote_items = blockquote_items.find('tbody')
 blockquote_items = blockquote_items.find_all('tr')
 listaDeEquipos = []
-dataframetotal = pd.DataFrame()
 def getEquipo(teamName):
     for b in listaDeEquipos:
         if b.name == teamName:
@@ -185,7 +192,48 @@ for num, blockquote in enumerate(blockquote_items):
               afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
               golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
               maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados, mediaGolPorPartidoEnContra)
+    teamObject.calculateData()
+    print(teamObject.puntosDeFuerza)
 
+
+
+def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for G in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeFuerza += 1
+        if G in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(G)
+        metodoFuerza(iter, G, teamToCheck, teamsCountedAlready)
+
+def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for L in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeDebilidad += 1
+        if L in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(L)
+        metodoDebilidad(iter, L, teamToCheck, teamsCountedAlready)
+
+
+
+
+for team in listaDeEquipos:
+    iter = 100
+    metodoFuerza(iter, team, team, [])
+    metodoDebilidad(iter, team, team, [])
+    # print(team.name, team.puntosDeFuerza)
+    # llamar al metood y ajustar los datos desde ahi
+
+
+
+
+dataframetotal = pd.DataFrame()
+for teamObject in listaDeEquipos:
     # Dataframes para posterior uso
     recopilacionDeDatos = teamObject.getDataframe()
     dataframetotal = pd.concat([dataframetotal, recopilacionDeDatos])
@@ -197,74 +245,6 @@ dataframetotal.columns = ["posicion", "nombre", "puntos", "partidos", "ganados",
                           "minimos goles marcados ultimos5", "maximos goles en contra ultimo5",
                           "minimos goles en contra ultimos5",
                           "media gol marcado ultimos5", "media gol en contra ultimos5","puntosFuerza", "puntosDebilidad"]
-
-def metodoFuerzaYDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
-    if (iter <= 0): return
-    # teamList = []
-    for G in teamToCheck.equiposQueHaGanado:
-        teamToAddPoints.puntosDeFuerza += G.puntosDeFuerza
-        if G in teamsCountedAlready:
-            continue
-        iter -= 1
-        teamsCountedAlready.append(teamToCheck.equiposQueHaGanado)
-        metodoFuerzaYDebilidad(iter, G, teamToCheck, teamsCountedAlready)
-
-
-    # def calculateWinningPoints(iteration, teamToCheck, teamToAddPoints, teamsCountedAlready):
-    #     if (iteration <= 0): return
-    #     for winAgainst in teamToCheck.equiposQueHaGanado:
-    #         teamToAddPoints.puntosGanados += 1
-    #         if winAgainst in teamsCountedAlready:
-    #             continue
-    #         iteration -= 1
-    #         teamsCountedAlready.append(winAgainst)
-    #         calculateWinningPoints(iteration, winAgainst, teamToAddPoints, teamsCountedAlready)
-    #Cojo este nombre, cojo su fila de datos, le añado puntos corresondientes, y busco en sus ganados y en sus perdidos a quien ha ganado y perdido, dentro de este bucle vuelvo a llamar a la funcion
-    # for eq in team.equiposQueHaGanado:
-        # team.puntosFuerza = team.puntosFuerza + eq
-        # team.puntosDebilidad = team.puntosDebilidad +
-    # team.equiposQueHaPerdido
-    # team.puntosFuerza = team.puntosFuerza +
-    # team.puntosDebilidad
-
-
-    # fila = datosMetodo.loc[datosMetodo[datosRelevantes[0]] == team]
-    # print(fila.to_string())
-    # puntosDeFuerza = len(fila[haGanado][0])
-    # puntosDeDebilidad = len(fila[haPerdido][0])
-    # if puntosDeFuerza != 0:
-    #     #puntos Fuerza
-    #     for teamG in fila[haGanado]:
-    #         puntosDeFuerza = puntosDeFuerza + metodoFuerzaYDebilidad(dataframeDeDatos, teamG,haGanado, haPerdido)
-    #         # print(puntosDeFuerza)
-    #         break
-    # if puntosDeDebilidad != 0:
-    #     #puntos Debilidad
-    #     for teamP in fila[haPerdido]:
-    #         puntosDeFuerza = puntosDeFuerza + len(row["Ha Ganado vs"])
-    #         # print(puntosDeFuerza)
-    #         break
-
-datosRelevantes = ["nombre", "Ha Ganado vs", "Ha perdido vs", "Ha empatado vs"]
-haPerdio = "Ha perdido vs"
-haGanado = "Ha Ganado vs"
-datosMetodo = dataframetotal[datosRelevantes].copy()
-listaDePuntosDeFuerza = []
-listaDePuntosDeDebilidad = []
-for team in listaDeEquipos:
-    iter = 10
-    metodoFuerzaYDebilidad(iter, team, team, [team])
-    print(team.name, team.puntosDeFuerza)
-    # llamar al metood y ajustar los datos desde ahi
-
-
-    # print(dataframetotal[datosRelevantes].to_string())
-
-
-
-
-
-
 print(dataframetotal.to_string())
 
 # Obtener excel final
