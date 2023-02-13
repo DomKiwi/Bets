@@ -59,7 +59,7 @@ for i in range(len(excel)):
             teamsCountedAlready.append(lostAgainst)
             calculateLosingPoints(iteration, lostAgainst, teamToAddPoints, teamsCountedAlready)
 
-CalculatePoints(200)
+CalculatePoints(500)
 
 #   Imprime por pantalla el resultado
 listaDeEquipos.sort(key=lambda x: x.puntosGanados, reverse=True)
