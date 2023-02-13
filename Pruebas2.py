@@ -198,20 +198,27 @@ dataframetotal.columns = ["posicion", "nombre", "puntos", "partidos", "ganados",
                           "minimos goles en contra ultimos5",
                           "media gol marcado ultimos5", "media gol en contra ultimos5","puntosFuerza", "puntosDebilidad"]
 
-def metodoFuerzaYDebilidad(team,iter):
-    teamList = []
-    iter = iter
+def metodoFuerzaYDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
     if (iter <= 0): return
-    # print(team.name)
-    for G in team.equiposQueHaGanado:
-        iter -= 1
-        if G in teamList:
+    # teamList = []
+    for G in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeFuerza += G.puntosDeFuerza
+        if G in teamsCountedAlready:
             continue
-        else:
-            teamList.append(G)
-            team.puntosDeFuerza += G.puntosDeFuerza
-            metodoFuerzaYDebilidad(G, iter)
+        iter -= 1
+        teamsCountedAlready.append(teamToCheck.equiposQueHaGanado)
+        metodoFuerzaYDebilidad(iter, G, teamToCheck, teamsCountedAlready)
 
+
+    # def calculateWinningPoints(iteration, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    #     if (iteration <= 0): return
+    #     for winAgainst in teamToCheck.equiposQueHaGanado:
+    #         teamToAddPoints.puntosGanados += 1
+    #         if winAgainst in teamsCountedAlready:
+    #             continue
+    #         iteration -= 1
+    #         teamsCountedAlready.append(winAgainst)
+    #         calculateWinningPoints(iteration, winAgainst, teamToAddPoints, teamsCountedAlready)
     #Cojo este nombre, cojo su fila de datos, le añado puntos corresondientes, y busco en sus ganados y en sus perdidos a quien ha ganado y perdido, dentro de este bucle vuelvo a llamar a la funcion
     # for eq in team.equiposQueHaGanado:
         # team.puntosFuerza = team.puntosFuerza + eq
@@ -246,12 +253,16 @@ listaDePuntosDeFuerza = []
 listaDePuntosDeDebilidad = []
 for team in listaDeEquipos:
     iter = 10
-    metodoFuerzaYDebilidad(team,iter)
+    metodoFuerzaYDebilidad(iter, team, team, [team])
     print(team.name, team.puntosDeFuerza)
     # llamar al metood y ajustar los datos desde ahi
 
 
     # print(dataframetotal[datosRelevantes].to_string())
+
+
+
+
 
 
 print(dataframetotal.to_string())
