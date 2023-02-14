@@ -116,6 +116,28 @@ def getEquipo(teamName, listaDeEquipos):
         if b.name == teamName:
             return b
 
+def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for G in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeFuerza += 1
+        if G in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(G)
+        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready)
+
+def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for L in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeDebilidad += 1
+        if L in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(L)
+        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
+
 # Lets start the program searching for Data in website
 page = requests.get('https://www.resultados-futbol.com/primera')    #Get URL
 soup = BeautifulSoup(page.text, 'html.parser')      #Use this format to read it
@@ -201,34 +223,7 @@ for num, blockquote in enumerate(blockquote_items):
     # teamObject.calculateData()
     # print(teamObject.puntosDeFuerza)
 
-
-
-def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
-    if (iter <= 0): return
-    # teamList = []
-    for G in teamToCheck.equiposQueHaGanado:
-        teamToAddPoints.puntosDeFuerza += 1
-        if G in teamsCountedAlready:
-            continue
-        iter -= 1
-        teamsCountedAlready.append(G)
-        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready)
-
-
-def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
-    if (iter <= 0): return
-    # teamList = []
-    for L in teamToCheck.equiposQueHaGanado:
-        teamToAddPoints.puntosDeDebilidad += 1
-        if L in teamsCountedAlready:
-            continue
-        iter -= 1
-        teamsCountedAlready.append(L)
-        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
-
-
-
-
+# Get points of Streght and Weakness
 for team in listaDeEquipos:
     iter = 200
     metodoFuerza(iter, team, team, [])
@@ -236,9 +231,22 @@ for team in listaDeEquipos:
     # print(team.name, team.puntosDeFuerza)
     # llamar al metood y ajustar los datos desde ahi
 
+#Next match take from soup
+routeNextMatch = soup.find('table', {'id': 'tabla1'})
+routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent','vevent impar']})
+for nextMatch in routeNextMatch:
+    teamOne = nextMatch.find('td',{'class': 'equipo1'}).find('a', href=True).find('img',alt=True).get('alt')
+    # teamOne = nextMatch.find('td', {'class': 'equipo1'}).get("href")
+    teamTwo = nextMatch.find('td',{'class': 'equipo2'}).find('a', href=True).find('img',alt=True).get('alt')
+    # print(teamOne.find_all('img', alt=True))
+    # print(teamOne, teamTwo)
+    #calleo funciones
 
 
 
+
+
+#Get Dataframe
 dataframetotal = pd.DataFrame()
 for teamObject in listaDeEquipos:
     # Dataframes para posterior uso
@@ -254,12 +262,6 @@ dataframetotal.columns = ["posicion", "nombre", "puntos", "partidos", "ganados",
                           "media gol marcado ultimos5", "media gol en contra ultimos5","puntosFuerza", "puntosDebilidad"]
 print(dataframetotal.to_string())
 # print(dataframetotal[["nombre", "puntosFuerza"]])
-
 # Obtener excel final
 # dataframetotal.to_excel("output.xlsx", sheet_name = "Datos en vivo", index=0)
 
-
-# Implementar:
-# Grafica por cada quiepo con medias y desviaciones
-# añadir metodologias de probabilidad para los datos recogidos
-#
