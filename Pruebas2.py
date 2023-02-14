@@ -33,15 +33,14 @@ class Equipo:
     minimosGolesEnContra = 0
     mediaGolPorPartidoMarcados = 0
     mediaGolPorPartidoEnContra = 0
-    puntosDeFuerza = len(equiposQueHaGanado)
-    puntosDeDebilidad = len(equiposQueHaPerdido)
+    # puntosDeFuerza = len(equiposQueHaGanado)
+    puntosDeDebilidad = 0
+    puntosDeFuerza = 0
     equiposQueHaEmpatadoNombre = []
     equiposQueHaGanadoNombre = []
     equiposQueHaPerdidoNombre = []
 
     def calculateData(self):
-        self.puntosDeFuerza = len(self.equiposQueHaGanado)
-        self.puntosDeDebilidad = len(self.equiposQueHaPerdido)
         self.equiposQueHaGanadoNombre = [tm.name for tm in self.equiposQueHaGanado]
         self.equiposQueHaPerdidoNombre = [tm.name for tm in self.equiposQueHaPerdido]
         self.equiposQueHaEmpatadoNombre = [tm.name for tm in self.equiposQueHaEmpatado]
@@ -193,7 +192,7 @@ for num, blockquote in enumerate(blockquote_items):
               golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
               maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados, mediaGolPorPartidoEnContra)
     teamObject.calculateData()
-    print(teamObject.puntosDeFuerza)
+    # print(teamObject.puntosDeFuerza)
 
 
 
@@ -206,7 +205,8 @@ def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
             continue
         iter -= 1
         teamsCountedAlready.append(G)
-        metodoFuerza(iter, G, teamToCheck, teamsCountedAlready)
+        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready)
+
 
 def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
     if (iter <= 0): return
@@ -217,13 +217,13 @@ def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
             continue
         iter -= 1
         teamsCountedAlready.append(L)
-        metodoDebilidad(iter, L, teamToCheck, teamsCountedAlready)
+        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
 
 
 
 
 for team in listaDeEquipos:
-    iter = 100
+    iter = 200
     metodoFuerza(iter, team, team, [])
     metodoDebilidad(iter, team, team, [])
     # print(team.name, team.puntosDeFuerza)
@@ -246,6 +246,7 @@ dataframetotal.columns = ["posicion", "nombre", "puntos", "partidos", "ganados",
                           "minimos goles en contra ultimos5",
                           "media gol marcado ultimos5", "media gol en contra ultimos5","puntosFuerza", "puntosDebilidad"]
 print(dataframetotal.to_string())
+# print(dataframetotal[["nombre", "puntosFuerza"]])
 
 # Obtener excel final
 # dataframetotal.to_excel("output.xlsx", sheet_name = "Datos en vivo", index=0)
