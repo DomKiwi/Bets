@@ -12,7 +12,8 @@ import openpyxl as pxl
 import os
 import zipfile
 import atexit
-
+import xlsxwriter
+from vincent.colors import brews
 
 # from IPython.display import display
 
@@ -176,18 +177,47 @@ class Equipo:
 
 ####################################################################################################################################################################
 # Create excel to write data call it more times if I want
+# class excelWriter:
+#     writerName = ''
+#     def __init__(self,writerName, data = pd.DataFrame(),nameSheet = ''):
+#         self.writerName = writerName
+#         self.writer = pd.ExcelWriter(writerName, engine='openpyxl')
+#     def excelWriterFunction(self, data, nameSheet):
+#         data.to_excel(self.writer, sheet_name=nameSheet, index=0)
+#         self.writer = pd.ExcelWriter(self.writerName, engine='xlsxwriter')
+#         wb = self.writer.book
+#         ws = self.writer.sheets[nameSheet]
+#         chart = wb.add_chart({'type': 'column'})
+#     def closingProgram(self):
+#         self.writer.close()
+#         print('Guardando el excel de datos pedidos')
+# excelGlobal = excelWriter('Output.xlsx')
+
 class excelWriter:
     writerName = ''
     def __init__(self,writerName, data = pd.DataFrame(),nameSheet = ''):
         self.writerName = writerName
-        self.writer = pd.ExcelWriter(writerName, engine='openpyxl')
+        self.writer = pd.ExcelWriter(writerName, engine='xlsxwriter')
     def excelWriterFunction(self, data, nameSheet):
         data.to_excel(self.writer, sheet_name=nameSheet, index=0)
+        wb = self.writer.book
+        ws = self.writer.sheets[nameSheet]
+        chart = wb.add_chart({'type': 'column'})
+        col_1 = data.columns
+        for col_num in range(1, len(col_1) + 1):
+            chart.add_series({
+                'name': [nameSheet, 0, col_num],
+                'categories': [nameSheet, 1, 0, 2, 0],
+                'values': [nameSheet, 1, col_num, 2, col_num],
+                # 'fill': {'color': brews['Spectral'][col_num - 1]},
+                'gap': 300,
+            })
+        chart.set_y_axis({'major_gridlines': {'visible': False}})
+        ws.insert_chart('K5', chart)
     def closingProgram(self):
         self.writer.close()
         print('Guardando el excel de datos pedidos')
 excelGlobal = excelWriter('Output.xlsx')
-
 ####################################################################################################################################################################
 # MODULES
 def getEquipo(teamName, listaDeEquipos):
