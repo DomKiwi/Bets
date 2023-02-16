@@ -1,4 +1,6 @@
 # from selenium import webdriver
+import itertools
+
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
@@ -6,6 +8,12 @@ import time
 import matplotlib.pyplot as plt
 from random import randrange
 import numpy as np
+import openpyxl as pxl
+import os
+import zipfile
+import atexit
+
+
 # from IPython.display import display
 
 # Clasificacion de Equipos con sus respectivos datos
@@ -165,6 +173,21 @@ class Equipo:
         ]
         return recopilacionequipo, recopilacionImportanteEquipo
 
+
+####################################################################################################################################################################
+# Create excel to write data call it more times if I want
+class excelWriter:
+    writerName = ''
+    def __init__(self,writerName, data = pd.DataFrame(),nameSheet = ''):
+        self.writerName = writerName
+        self.writer = pd.ExcelWriter(writerName, engine='openpyxl')
+    def excelWriterFunction(self, data, nameSheet):
+        data.to_excel(self.writer, sheet_name=nameSheet, index=0)
+    def closingProgram(self):
+        self.writer.close()
+        print('Guardando el excel de datos pedidos')
+excelGlobal = excelWriter('Output.xlsx')
+
 ####################################################################################################################################################################
 # MODULES
 def getEquipo(teamName, listaDeEquipos):
@@ -196,6 +219,34 @@ def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
         teamsCountedAlready.append(L)
         metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
 
+
+# def excelWriter(data, nameSheet):
+#     # Start excel writer
+#     if not os.path.exists('Output.xlsx'):
+#         data.to_excel('Output.xlsx', sheet_name=nameSheet, index = 0)
+#         print('hola')
+#     else:
+#
+#         excel_book = pxl.load_workbook('Output.xlsx')
+#         excel_book.create_sheet(nameSheet)
+#         ws = pd.ExcelWriter('Output.xlsx', engine = 'openpyxl')
+#         ws.book = excel_book
+#         # ws = excel_book[nameSheet]
+#         # writer = pd.ExcelWriter('Output.xlsx', engine='openpyxl')
+#         # writer.book = pxl.load_workbook('Output.xlsx')
+#         data.to_excel(ws, sheet_name=nameSheet, index=0)
+#         # excel_book.save()
+#         # excel_book.close()
+
+
+# with zipfile.ZipFile("Output.zip", "w") as zf:
+#     # in open function specify the name in which
+#     # the excel file has to be stored
+#     with zf.open("Output.xlsx", "w") as buffer:
+#         with pd.ExcelWriter(buffer) as writer:
+#             # use to_excel function and specify the sheet_name and
+#             # index to store the dataframe in specified sheet
+#             data.to_excel(writer, sheet_name=nameSheet, index=False)
 ####################################################################################################################################################################
 # Lets start the program searching for Data in website
 page = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
@@ -289,27 +340,6 @@ for team in listaDeEquipos:
     metodoDebilidad(iter, team, team, [])
 
 ####################################################################################################################################################################
-# Next match take from soup
-routeNextMatch = soup.find('table', {'id': 'tabla1'})
-routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impar']})
-for j, nextMatch in enumerate(routeNextMatch):
-    teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
-    teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
-    [teamDataOne,teamDataOneImportant] = getEquipo(teamOne, listaDeEquipos).getDataframe()
-    [teamDataTwo,teamDataTwoImportant] = getEquipo(teamTwo, listaDeEquipos).getDataframe()
-    matchs = pd.concat([teamDataOneImportant,teamDataTwoImportant])
-    #Ploteo
-    var = matchs.columns[0]
-    plt.xticks(x=var)
-    for i in matchs.columns:
-        if i == var:
-            continue
-        ax = plt.gca()
-        matchs.plot(kind='line', x=var, y=i, ax=ax)
-    plt.show()
-
-
-
 
 
 ####################################################################################################################################################################
@@ -324,26 +354,46 @@ for teamObject in listaDeEquipos:
 
 time.sleep(1)
 
-
-
 ####################################################################################################################################################################
 variable = dataframeDatosImportantes.columns[0]
-plt.xticks(x = variable)
+plt.xticks(x=variable)
 ay = np.arange(-2, 100, 1)
 for name in dataframeDatosImportantes.columns:
     if name == variable:
         continue
-    rand_color = (randrange(255), randrange(255), randrange(255)) #crea colores rgb aleatorios
+    rand_color = (randrange(255), randrange(255), randrange(255))  # crea colores rgb aleatorios
     # gca stands for 'get current axis'
     # ax = plt.gca()
     fig, ax = plt.subplots()
     ax.step(x=dataframeDatosImportantes[variable], y=dataframeDatosImportantes[name], linewidth=2)
     maxValue = dataframeDatosImportantes[name].max()
-    ax.set(ylim=(-2,maxValue), yticks=np.arange(-2, maxValue, 1))
+    ax.set(ylim=(-2, maxValue), yticks=np.arange(-2, maxValue, 1))
     # dataframeDatosImportantes.plot(kind='step', x=variable, y=name, ax=ax)
 # plt.show()
 
+####################################################################################################################################################################
+# Next match take from soup
+routeNextMatch = soup.find('table', {'id': 'tabla1'})
+routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impar']})
+for j, nextMatch in enumerate(routeNextMatch):
+    teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
+    teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
+    [teamDataOne, teamDataOneImportant] = getEquipo(teamOne, listaDeEquipos).getDataframe()
+    [teamDataTwo, teamDataTwoImportant] = getEquipo(teamTwo, listaDeEquipos).getDataframe()
+    matchs = pd.concat([teamDataOneImportant, teamDataTwoImportant])
+    # Ploteo
+    var = matchs.columns[0]
+    plt.xticks(x=var)
+    for i in matchs.columns:
+        if i == var:
+            continue
+        ax = plt.gca()
+        matchs.plot(kind='line', x=var, y=i, ax=ax)
+    # plt.show()
+    excelGlobal.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
 
 # Obtener excel final
-# dataframetotal.to_excel("output.xlsx", sheet_name = "Datos en vivo", index=0)
-print(dataframetotal.to_string())
+excelGlobal.excelWriterFunction(dataframetotal, "Datos en bruto")
+# print(dataframetotal.to_string())
+atexit.register(excelGlobal.closingProgram())
+# exit(excelGlobal.closingProgram())º
