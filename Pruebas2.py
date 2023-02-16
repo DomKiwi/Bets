@@ -203,13 +203,12 @@ class excelWriter:
         wb = self.writer.book
         ws = self.writer.sheets[nameSheet]
         chart = wb.add_chart({'type': 'column'})
-        col_1 = data.columns
+        col_1 = data[data.columns[0]]
         for col_num in range(1, len(col_1) + 1):
             chart.add_series({
-                'name': [nameSheet, 0, col_num],
-                'categories': [nameSheet, 1, 0, 2, 0],
-                'values': [nameSheet, 1, col_num, 2, col_num],
-                # 'fill': {'color': brews['Spectral'][col_num - 1]},
+                'name': [nameSheet, col_num, 0],
+                'categories': [nameSheet, 0, 1, 0, 10],
+                'values': [nameSheet, col_num, 1, col_num, 10],
                 'gap': 300,
             })
         chart.set_y_axis({'major_gridlines': {'visible': False}})
