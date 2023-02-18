@@ -180,6 +180,7 @@ class excelWriter:
         self.writerName = writerName
         self.writer = pd.ExcelWriter(writerName, engine='xlsxwriter')
     def excelWriterFunction(self, data, nameSheet):
+        nameSheet = nameSheet[0:30]
         data.to_excel(self.writer, sheet_name=nameSheet, index=0)
         wb = self.writer.book
         ws = self.writer.sheets[nameSheet]
@@ -251,24 +252,20 @@ def createExcelNextMatches(route, listOfTeams,excel):
     for j, nextMatch in enumerate(routeNextMatch):
         teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
         teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
-        # Excepccion:
-        if 'Deportivo' in teamOne:
-            teamOne = 'Deportivo'
-        if 'Deportivo' in teamTwo:
-            teamTwo = 'Deportivo'
+        # Excepcion
+        for num_2, a in enumerate(listOfTeams):     #Excepciones por toda la cara de la pagina web
+            if a.name in teamOne:
+                teamOne = a.name
+            if a.name in teamTwo:
+                teamTwo = a.name
+        if 'Levante' in teamOne and 'Planas' in teamOne:
+            teamOne = 'Levante Planas'
+        if 'Levante' in teamTwo and 'Planas' in teamTwo:
+            teamTwo = 'Levante Planas'
         # Fin de Excepcion
         [teamDataOne, teamDataOneImportant] = getEquipo(teamOne, listOfTeams).getDataframe()
         [teamDataTwo, teamDataTwoImportant] = getEquipo(teamTwo, listOfTeams).getDataframe()
         matchs = pd.concat([teamDataOneImportant, teamDataTwoImportant])
-        # Ploteo
-        var = matchs.columns[0]
-        plt.xticks(x=var)
-        for i in matchs.columns:
-            if i == var:
-                continue
-            ax = plt.gca()
-            matchs.plot(kind='line', x=var, y=i, ax=ax)
-        # plt.show()
         excel.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
 
 def endProgram(excels):     #Close the program
@@ -278,7 +275,7 @@ def searchForEachLeague(route):
     listOfTeams = []
 
     # Lets start the program searching for Data in website
-    soupOfLeague = BeautifulSoup(pagePrimeraDivision.text, 'html.parser')  # Use this format to read it
+    soupOfLeague = BeautifulSoup(route.text, 'html.parser')  # Use this format to read it
 
     blockquote_items = soupOfLeague.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
     blockquote_items = blockquote_items.find('tbody')
@@ -296,7 +293,7 @@ def searchForEachLeague(route):
         # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
         columnaPosiciones = \
             blockquote.find("th",
-                            {"class": ["pos2 pos-cha", "pos3 pos-uefa", "pos5 pos-conf", "", "pos6 pos-desc", "pos2 pos-asc", "pos3 pos-play", "pos5 pos-desc"]}).contents[0]
+                            {"class": ["pos2 pos-cha", "pos3 pos-uefa", "pos5 pos-conf", "", "pos6 pos-desc", "pos2 pos-asc", "pos3 pos-play", "pos5 pos-desc", "pos3 pos-prev"]}).contents[0]
         equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
         puntos = blockquote.find("td", {"class": "pts"}).contents[0]
         partidos = blockquote.find("td", {"class": "pj"}).contents[0]
@@ -321,7 +318,16 @@ def searchForEachLeague(route):
             resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
             equiposDelPartido = resultado.find_all("b", {"class": "bname"})
             ambosEquipos = [b.get_text() for b in equiposDelPartido]
+            for num_2, a in enumerate(listOfTeams):
+                if a.name in ambosEquipos[0]:
+                    ambosEquipos[0] = a.name
+                if a.name in ambosEquipos[1]:
+                    ambosEquipos[1] = a.name
+            for num_1, c in enumerate(ambosEquipos):  # Correccion por culpa de la Website de cambiar nombres asi porque si
+                if 'Levante' in c and 'Planas' in c:
+                    ambosEquipos[num_1] = 'Levante Planas'
             equipoContrario = ambosEquipos.copy()
+            print(equipo, equipoContrario)
             equipoContrario.remove(equipo)
             golesDelPartido = resultado.find_all("b", {"class": "bres"})
             golesDeAmbos = [b.get_text() for b in golesDelPartido]
@@ -357,32 +363,44 @@ def searchForEachLeague(route):
                              maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
                              mediaGolPorPartidoEnContra)
     return listOfTeams, soupOfLeague
+
+###################################################################################################################################################################
 ######################################################  Create List of Teams objects   ############################################################################
 
 pagePrimeraDivision = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
 listaDeEquiposDePrimera, soupPrimeraDivision = searchForEachLeague(pagePrimeraDivision)
 pageSegundaDivision = requests.get('https://www.resultados-futbol.com/segunda')  # Get URL
 listaDeEquiposDeSegunda, soupSegundaDivision = searchForEachLeague(pageSegundaDivision)
+pageLigaFemenina = requests.get('https://www.resultados-futbol.com/primera_division_femenina')  # Get URL
+listaDeEquiposLigaFemenina, soupLigaFemenina = searchForEachLeague(pageLigaFemenina)
 
 ########################################################  Get points of Streght and Weakness     ###################################################################
 addPointsStrengthWeakness(listaDeEquiposDePrimera)
 addPointsStrengthWeakness(listaDeEquiposDeSegunda)
+addPointsStrengthWeakness(listaDeEquiposLigaFemenina)
 
 ####################################################################  Get Dataframe  ################################################################################
 dataRawPrimeraDivision, dataKeyPrimeraDivision = createDataFrame(listaDeEquiposDePrimera)
 dataRawSegundaDivision, dataKeySegundaDivision = createDataFrame(listaDeEquiposDeSegunda)
+dataRawLigaFem, dataKeyLigaFem = createDataFrame(listaDeEquiposLigaFemenina)
 
 #################################################################   Excel Data  #####################################################################################
 # Create excels
 excelPrimeraDivision = excelWriter('Output Primera Division.xlsx')
 excelSegundaDivision = excelWriter('Output Segunda Division.xlsx')
+excelLigaFem = excelWriter('Output Liga Femenina.xlsx')
+
 # Next match take from soup
 createExcelNextMatches(soupPrimeraDivision, listaDeEquiposDePrimera, excelPrimeraDivision)
 createExcelNextMatches(soupSegundaDivision, listaDeEquiposDeSegunda, excelSegundaDivision)
+createExcelNextMatches(soupLigaFemenina, listaDeEquiposLigaFemenina, excelLigaFem)
+
 # Obtener excel final
 excelPrimeraDivision.excelWriterFunction(dataRawPrimeraDivision, "Data Raw Primera")
 excelSegundaDivision.excelWriterFunction(dataRawSegundaDivision, "Data Raw Segunda")
+excelLigaFem.excelWriterFunction(dataRawLigaFem, "Data Raw Liga Femenina")
+
 
 #################################################################   Program Closure  #####################################################################################
 # Program Closure
-exit(endProgram((excelPrimeraDivision.closingProgram(), excelSegundaDivision.closingProgram())))
+exit(endProgram((excelPrimeraDivision.closingProgram(), excelSegundaDivision.closingProgram(), excelLigaFem.closingProgram())))
