@@ -235,45 +235,58 @@ def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
         teamsCountedAlready.append(L)
         metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
 
+def addPointsStrengthWeakness(listOfTeams):
+    for team in listOfTeams:
+        iter = 200
+        metodoFuerza(iter, team, team, [])
+        metodoDebilidad(iter, team, team, [])
 
-# def excelWriter(data, nameSheet):
-#     # Start excel writer
-#     if not os.path.exists('Output.xlsx'):
-#         data.to_excel('Output.xlsx', sheet_name=nameSheet, index = 0)
-#         print('hola')
-#     else:
-#
-#         excel_book = pxl.load_workbook('Output.xlsx')
-#         excel_book.create_sheet(nameSheet)
-#         ws = pd.ExcelWriter('Output.xlsx', engine = 'openpyxl')
-#         ws.book = excel_book
-#         # ws = excel_book[nameSheet]
-#         # writer = pd.ExcelWriter('Output.xlsx', engine='openpyxl')
-#         # writer.book = pxl.load_workbook('Output.xlsx')
-#         data.to_excel(ws, sheet_name=nameSheet, index=0)
-#         # excel_book.save()
-#         # excel_book.close()
+def createDataFrame(listOfTeams):
+    dataframetotal = pd.DataFrame()
+    dataframeDatosImportantes = pd.DataFrame()
+    for teamObject in listOfTeams:
+        # UnoDataframes
+        [dataframeRawData, dataframeKeyData] = teamObject.getDataframe()
+        dataframetotal = pd.concat([dataframetotal, dataframeRawData])
+        dataframeDatosImportantes = pd.concat([dataframeDatosImportantes, dataframeKeyData])
+    return dataframetotal, dataframeDatosImportantes
 
-
-# with zipfile.ZipFile("Output.zip", "w") as zf:
-#     # in open function specify the name in which
-#     # the excel file has to be stored
-#     with zf.open("Output.xlsx", "w") as buffer:
-#         with pd.ExcelWriter(buffer) as writer:
-#             # use to_excel function and specify the sheet_name and
-#             # index to store the dataframe in specified sheet
-#             data.to_excel(writer, sheet_name=nameSheet, index=False)
+def createExcelNextMatches(route, listOfTeams):
+    routeNextMatch = route.find('table', {'id': 'tabla1'})
+    routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impar']})
+    for j, nextMatch in enumerate(routeNextMatch):
+        teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
+        teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
+        # Excepccion:
+        if 'Deportivo' in teamOne:
+            teamOne = 'Deportivo'
+        if 'Deportivo' in teamTwo:
+            teamTwo = 'Deportivo'
+        # Fin de Excepcion
+        [teamDataOne, teamDataOneImportant] = getEquipo(teamOne, listOfTeams).getDataframe()
+        [teamDataTwo, teamDataTwoImportant] = getEquipo(teamTwo, listOfTeams).getDataframe()
+        matchs = pd.concat([teamDataOneImportant, teamDataTwoImportant])
+        # Ploteo
+        var = matchs.columns[0]
+        plt.xticks(x=var)
+        for i in matchs.columns:
+            if i == var:
+                continue
+            ax = plt.gca()
+            matchs.plot(kind='line', x=var, y=i, ax=ax)
+        # plt.show()
+        excelGlobal.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
 ####################################################################################################################################################################
 ######################################################  FIRST MODULE / FIRST DIVISION   ############################################################################
 ####################################################################################################################################################################
 
-listaDeEquipos = []
+listaDeEquiposDePrimera = []
 
 # Lets start the program searching for Data in website
-page = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
-soup = BeautifulSoup(page.text, 'html.parser')  # Use this format to read it
+pagePrimeraDivision = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
+soupPrimeraDivision = BeautifulSoup(pagePrimeraDivision.text, 'html.parser')  # Use this format to read it
 
-blockquote_items = soup.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
+blockquote_items = soupPrimeraDivision.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
 blockquote_items = blockquote_items.find('tbody')
 blockquote_items = blockquote_items.find_all('tr')
 
@@ -281,7 +294,7 @@ blockquote_items = blockquote_items.find_all('tr')
 for num, blockquote in enumerate(blockquote_items):
     equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
     team = Equipo(equipo)
-    listaDeEquipos.append(team)
+    listaDeEquiposDePrimera.append(team)
 
 ####################################################################################################################################################################
 # del bloque buscado empiezo a obtener los datos
@@ -330,9 +343,9 @@ for num, blockquote in enumerate(blockquote_items):
         golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
         golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
 
-        teamObject = getEquipo(equipo, listaDeEquipos)
+        teamObject = getEquipo(equipo, listaDeEquiposDePrimera)
         newEnemyName = equipoContrario[0]
-        newEnemyObject = getEquipo(newEnemyName, listaDeEquipos)
+        newEnemyObject = getEquipo(newEnemyName, listaDeEquiposDePrimera)
         if resultadoDelPartido == 'VICTORIA':
             equiposQueHaGanado.append(newEnemyObject)
         if resultadoDelPartido == 'DERROTA':
@@ -349,8 +362,6 @@ for num, blockquote in enumerate(blockquote_items):
                          golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
                          maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
                          mediaGolPorPartidoEnContra)
-    # teamObject.calculateData()
-    # print(teamObject.puntosDeFuerza)
 
 
 
@@ -358,18 +369,19 @@ for num, blockquote in enumerate(blockquote_items):
 ######################################################  SECOND MODULE / SECOND DIVISION   ############################################################################
 ####################################################################################################################################################################
 # Lets start the program searching for Data in website
-page = requests.get('https://www.resultados-futbol.com/segunda')  # Get URL
-soup = BeautifulSoup(page.text, 'html.parser')  # Use this format to read it
+pageSegundaDivision = requests.get('https://www.resultados-futbol.com/segunda')  # Get URL
+soupSegundaDivison = BeautifulSoup(pageSegundaDivision.text, 'html.parser')  # Use this format to read it
 
-blockquote_items = soup.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
+blockquote_items = soupSegundaDivison.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
 blockquote_items = blockquote_items.find('tbody')
 blockquote_items = blockquote_items.find_all('tr')
 
+listaDeEquiposDeSegunda = []
 # Get name of teams and create a class for each one
 for num, blockquote in enumerate(blockquote_items):
     equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
     team = Equipo(equipo)
-    listaDeEquipos.append(team)
+    listaDeEquiposDeSegunda.append(team)
 
 ####################################################################################################################################################################
 # del bloque buscado empiezo a obtener los datos
@@ -423,9 +435,9 @@ for num, blockquote in enumerate(blockquote_items):
         golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
         golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
 
-        teamObject = getEquipo(equipo, listaDeEquipos)
+        teamObject = getEquipo(equipo, listaDeEquiposDeSegunda)
         newEnemyName = equipoContrario[0]
-        newEnemyObject = getEquipo(newEnemyName, listaDeEquipos)
+        newEnemyObject = getEquipo(newEnemyName, listaDeEquiposDeSegunda)
         if resultadoDelPartido == 'VICTORIA':
             equiposQueHaGanado.append(newEnemyObject)
         if resultadoDelPartido == 'DERROTA':
@@ -442,76 +454,42 @@ for num, blockquote in enumerate(blockquote_items):
                          golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
                          maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
                          mediaGolPorPartidoEnContra)
-    # teamObject.calculateData()
-    # print(teamObject.puntosDeFuerza)
 
 ####################################################################################################################################################################
 # Get points of Streght and Weakness
-for team in listaDeEquipos:
-    iter = 200
-    metodoFuerza(iter, team, team, [])
-    metodoDebilidad(iter, team, team, [])
-
-####################################################################################################################################################################
-
+addPointsStrengthWeakness(listaDeEquiposDePrimera)
+addPointsStrengthWeakness(listaDeEquiposDeSegunda)
 
 ####################################################################################################################################################################
 # Get Dataframe
-dataframetotal = pd.DataFrame()
-dataframeDatosImportantes = pd.DataFrame()
-for teamObject in listaDeEquipos:
-    # UnoDataframes
-    [recopilacionDeDatos, recopilacionDatosImportantes] = teamObject.getDataframe()
-    dataframetotal = pd.concat([dataframetotal, recopilacionDeDatos])
-    dataframeDatosImportantes = pd.concat([dataframeDatosImportantes, recopilacionDatosImportantes])
-
-time.sleep(1)
-
+dataRawPrimeraDivision, dataKeyPrimeraDivision = createDataFrame(listaDeEquiposDePrimera)
+dataRawSegundaDivision, dataKeySegundaDivision = createDataFrame(listaDeEquiposDeSegunda)
 ####################################################################################################################################################################
-variable = dataframeDatosImportantes.columns[0]
-plt.xticks(x=variable)
-ay = np.arange(-2, 100, 1)
-for name in dataframeDatosImportantes.columns:
-    if name == variable:
-        continue
-    rand_color = (randrange(255), randrange(255), randrange(255))  # crea colores rgb aleatorios
-    # gca stands for 'get current axis'
-    # ax = plt.gca()
-    fig, ax = plt.subplots()
-    ax.step(x=dataframeDatosImportantes[variable], y=dataframeDatosImportantes[name], linewidth=2)
-    maxValue = dataframeDatosImportantes[name].max()
-    ax.set(ylim=(-2, maxValue), yticks=np.arange(-2, maxValue, 1))
-    # dataframeDatosImportantes.plot(kind='step', x=variable, y=name, ax=ax)
-# plt.show()
+# variable = dataframeDatosImportantes.columns[0]
+# plt.xticks(x=variable)
+# ay = np.arange(-2, 100, 1)
+# for name in dataframeDatosImportantes.columns:
+#     if name == variable:
+#         continue
+#     rand_color = (randrange(255), randrange(255), randrange(255))  # crea colores rgb aleatorios
+#     # gca stands for 'get current axis'
+#     # ax = plt.gca()
+#     fig, ax = plt.subplots()
+#     ax.step(x=dataframeDatosImportantes[variable], y=dataframeDatosImportantes[name], linewidth=2)
+#     maxValue = dataframeDatosImportantes[name].max()
+#     ax.set(ylim=(-2, maxValue), yticks=np.arange(-2, maxValue, 1))
+#     # dataframeDatosImportantes.plot(kind='step', x=variable, y=name, ax=ax)
+# # plt.show()
 
 ####################################################################################################################################################################
 # Next match take from soup
-routeNextMatch = soup.find('table', {'id': 'tabla1'})
-routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impar']})
-for j, nextMatch in enumerate(routeNextMatch):
-    teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
-    teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
-    #Excepccion:
-    if 'Deportivo' in teamOne:
-        teamOne = 'Deportivo'
-    if 'Deportivo' in teamTwo:
-        teamTwo = 'Deportivo'
-    [teamDataOne, teamDataOneImportant] = getEquipo(teamOne, listaDeEquipos).getDataframe()
-    [teamDataTwo, teamDataTwoImportant] = getEquipo(teamTwo, listaDeEquipos).getDataframe()
-    matchs = pd.concat([teamDataOneImportant, teamDataTwoImportant])
-    # Ploteo
-    var = matchs.columns[0]
-    plt.xticks(x=var)
-    for i in matchs.columns:
-        if i == var:
-            continue
-        ax = plt.gca()
-        matchs.plot(kind='line', x=var, y=i, ax=ax)
-    # plt.show()
-    excelGlobal.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
+createExcelNextMatches(soupPrimeraDivision, listaDeEquiposDePrimera)
+createExcelNextMatches(soupSegundaDivison, listaDeEquiposDeSegunda)
 
+####################################################################################################################################################################
 # Obtener excel final
-excelGlobal.excelWriterFunction(dataframetotal, "Datos en bruto")
+excelGlobal.excelWriterFunction(dataRawPrimeraDivision, "Data Raw Primera")
+excelGlobal.excelWriterFunction(dataRawSegundaDivision, "Data Raw Segunda")
 # print(dataframetotal.to_string())
 atexit.register(excelGlobal.closingProgram())
 # exit(excelGlobal.closingProgram())º
