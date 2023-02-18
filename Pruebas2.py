@@ -136,62 +136,47 @@ class Equipo:
         recopilacionImportanteEquipo = pd.DataFrame(recopilacionImportanteEquipo).transpose()
 
         recopilacionequipo.columns = [
-            "posicion",
-            "nombre",
-            "puntos",
-            "partidos",
-            "ganados",
-            "empatados",
-            "perdidos",
-            "afavor",
-            "encontra",
-            "Ha Ganado vs",
-            "Ha perdido vs",
-            "Ha empatado vs",
-            "golesAfavorUltimas5",
-            "golesEnContraUltimas5",
-            "maximos goles marcados ultimos5",
-            "minimos goles marcados ultimos5",
-            "maximos goles en contra ultimo5",
-            "minimos goles en contra ultimos5",
-            "media gol marcado ultimos5",
-            "media gol en contra ultimos5",
-            "puntosFuerza",
-            "puntosDebilidad"
+            "Position",
+            "Team",
+            "Points",
+            "Matches",
+            "Wins",
+            "Draws",
+            "Loses",
+            "G_Scored",
+            "G_Against",
+            "Won vs",
+            "Lost vs",
+            "Draw vs",
+            "G_Scored last_4",
+            "G_Against last_4",
+            "Max G_Scored last_4",
+            "Min G_Scored last_4",
+            "Max G_Against last_4",
+            "Min G_Against last_4",
+            "Averg G_Scored last_4",
+            "Averg G_Against last_4",
+            "Strength Points",
+            "Weakness Points"
         ]
         recopilacionImportanteEquipo.columns = [
-            "nombre",
-            "golesAfavorUltimas5",
-            "golesEnContraUltimas5",
-            "maximos goles marcados ultimos5",
-            "minimos goles marcados ultimos5",
-            "maximos goles en contra ultimo5",
-            "minimos goles en contra ultimos5",
-            "media gol marcado ultimos5",
-            "media gol en contra ultimos5",
-            "puntosFuerza",
-            "puntosDebilidad"
+            "Team",
+            "G_Scored last_4",
+            "G_Against last_4",
+            "Max G_Scored last_4",
+            "Min G_Scored last_4",
+            "Max G_Against last_4",
+            "Min G_Against last_4",
+            "Averg G_Scored last_4",
+            "Averg G_Against last_4",
+            "Strength Points",
+            "Weakness Points"
         ]
         return recopilacionequipo, recopilacionImportanteEquipo
 
 
 ####################################################################################################################################################################
 # Create excel to write data call it more times if I want
-# class excelWriter:
-#     writerName = ''
-#     def __init__(self,writerName, data = pd.DataFrame(),nameSheet = ''):
-#         self.writerName = writerName
-#         self.writer = pd.ExcelWriter(writerName, engine='openpyxl')
-#     def excelWriterFunction(self, data, nameSheet):
-#         data.to_excel(self.writer, sheet_name=nameSheet, index=0)
-#         self.writer = pd.ExcelWriter(self.writerName, engine='xlsxwriter')
-#         wb = self.writer.book
-#         ws = self.writer.sheets[nameSheet]
-#         chart = wb.add_chart({'type': 'column'})
-#     def closingProgram(self):
-#         self.writer.close()
-#         print('Guardando el excel de datos pedidos')
-# excelGlobal = excelWriter('Output.xlsx')
 
 class excelWriter:
     writerName = ''
@@ -207,12 +192,14 @@ class excelWriter:
         for col_num in range(1, len(col_1) + 1):
             chart.add_series({
                 'name': [nameSheet, col_num, 0],
-                'categories': [nameSheet, 0, 1, 0, 10],
-                'values': [nameSheet, col_num, 1, col_num, 10],
+                'categories': [nameSheet, 0, 1, 0, len(data.columns)-1],
+                'values': [nameSheet, col_num, 1, col_num, len(data.columns)-1],
                 'gap': 300,
             })
-        chart.set_y_axis({'major_gridlines': {'visible': False}})
-        ws.insert_chart('K5', chart)
+        ws.set_column(0, len(data.columns), 20)
+        chart.set_x_axis({'name': 'Teams'})
+        chart.set_y_axis({'name': 'Points', 'major_gridlines': {'visible': False}})
+        ws.insert_chart('A7', chart)
     def closingProgram(self):
         self.writer.close()
         print('Guardando el excel de datos pedidos')
@@ -277,6 +264,11 @@ def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
 #             # index to store the dataframe in specified sheet
 #             data.to_excel(writer, sheet_name=nameSheet, index=False)
 ####################################################################################################################################################################
+######################################################  FIRST MODULE / FIRST DIVISION   ############################################################################
+####################################################################################################################################################################
+
+listaDeEquipos = []
+
 # Lets start the program searching for Data in website
 page = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
 soup = BeautifulSoup(page.text, 'html.parser')  # Use this format to read it
@@ -286,7 +278,6 @@ blockquote_items = blockquote_items.find('tbody')
 blockquote_items = blockquote_items.find_all('tr')
 
 # Get name of teams and create a class for each one
-listaDeEquipos = []
 for num, blockquote in enumerate(blockquote_items):
     equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
     team = Equipo(equipo)
@@ -323,6 +314,99 @@ for num, blockquote in enumerate(blockquote_items):
         resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
         equiposDelPartido = resultado.find_all("b", {"class": "bname"})
         ambosEquipos = [b.get_text() for b in equiposDelPartido]
+        equipoContrario = ambosEquipos.copy()
+        equipoContrario.remove(equipo)
+        golesDelPartido = resultado.find_all("b", {"class": "bres"})
+        golesDeAmbos = [b.get_text() for b in golesDelPartido]
+        equiposYgoles = dict(map(lambda i, j: (i, j), ambosEquipos, golesDeAmbos))
+
+        if int(equiposYgoles[equipo]) > maximosGoles: maximosGoles = int(equiposYgoles[equipo])
+        if int(equiposYgoles[equipo]) < minimosGoles: minimosGoles = int(equiposYgoles[equipo])
+        if int(equiposYgoles[equipoContrario[0]]) > maximosGolesEnContra: maximosGolesEnContra = int(
+            equiposYgoles[equipoContrario[0]])
+        if int(equiposYgoles[equipoContrario[0]]) < minimosGolesEnContra: minimosGolesEnContra = int(
+            equiposYgoles[equipoContrario[0]])
+
+        golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
+        golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
+
+        teamObject = getEquipo(equipo, listaDeEquipos)
+        newEnemyName = equipoContrario[0]
+        newEnemyObject = getEquipo(newEnemyName, listaDeEquipos)
+        if resultadoDelPartido == 'VICTORIA':
+            equiposQueHaGanado.append(newEnemyObject)
+        if resultadoDelPartido == 'DERROTA':
+            equiposQueHaperdido.append(newEnemyObject)
+        if resultadoDelPartido == 'EMPATE':
+            equiposQueHaEmpatado.append(newEnemyObject)
+
+    numDePartidos = len(equiposQueHaGanado) + len(equiposQueHaperdido) + len(equiposQueHaEmpatado)
+    mediaGolPorPartidoMarcados = golesAfavorUltimasJornadas / numDePartidos
+    mediaGolPorPartidoEnContra = golesEncontraUltimasJornadas / numDePartidos
+
+    teamObject.setvalues(columnaPosiciones, puntos, partidos, wins, draws, loses,
+                         afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
+                         golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
+                         maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
+                         mediaGolPorPartidoEnContra)
+    # teamObject.calculateData()
+    # print(teamObject.puntosDeFuerza)
+
+
+
+####################################################################################################################################################################
+######################################################  SECOND MODULE / SECOND DIVISION   ############################################################################
+####################################################################################################################################################################
+# Lets start the program searching for Data in website
+page = requests.get('https://www.resultados-futbol.com/segunda')  # Get URL
+soup = BeautifulSoup(page.text, 'html.parser')  # Use this format to read it
+
+blockquote_items = soup.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
+blockquote_items = blockquote_items.find('tbody')
+blockquote_items = blockquote_items.find_all('tr')
+
+# Get name of teams and create a class for each one
+for num, blockquote in enumerate(blockquote_items):
+    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
+    team = Equipo(equipo)
+    listaDeEquipos.append(team)
+
+####################################################################################################################################################################
+# del bloque buscado empiezo a obtener los datos
+for num, blockquote in enumerate(blockquote_items):
+    # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
+    columnaPosiciones = \
+        blockquote.find("th",
+                        {"class": ["pos2 pos-asc", "pos2 pos-asc", "pos3 pos-play", "", "pos5 pos-desc"]}).contents[0]
+    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
+    puntos = blockquote.find("td", {"class": "pts"}).contents[0]
+    partidos = blockquote.find("td", {"class": "pj"}).contents[0]
+    wins = blockquote.find("td", {"class": "win"}).contents[0]
+    draws = blockquote.find("td", {"class": "draw"}).contents[0]
+    loses = blockquote.find("td", {"class": "lose"}).contents[0]
+    afavor = blockquote.find("td", {"class": "f"}).contents[0]
+    encontra = blockquote.find("td", {"class": "c"}).contents[0]
+
+    resultadopartidos = blockquote.find_all("span", {"class": "classicsmall"})
+    equiposQueHaGanado = []
+    equiposQueHaperdido = []
+    equiposQueHaEmpatado = []
+    golesAfavorUltimasJornadas = 0
+    golesEncontraUltimasJornadas = 0
+    minimosGoles = 100
+    maximosGoles = 0
+    minimosGolesEnContra = 100
+    maximosGolesEnContra = 0
+    for x, resultado in enumerate(resultadopartidos):
+        if x == 0: continue
+        resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
+        equiposDelPartido = resultado.find_all("b", {"class": "bname"})
+        ambosEquipos = [b.get_text() for b in equiposDelPartido]
+        for num,b in enumerate(ambosEquipos):       #Correccion por culpa de la Website de cambiar nombres asi porque si
+            if equipo in b:
+                ambosEquipos[num] = equipo
+            if 'Deportivo' in b:
+                ambosEquipos[num] = 'Deportivo'
         equipoContrario = ambosEquipos.copy()
         equipoContrario.remove(equipo)
         golesDelPartido = resultado.find_all("b", {"class": "bres"})
@@ -407,6 +491,11 @@ routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impa
 for j, nextMatch in enumerate(routeNextMatch):
     teamOne = nextMatch.find('td', {'class': 'equipo1'}).find('a', href=True).find('img', alt=True).get('alt')
     teamTwo = nextMatch.find('td', {'class': 'equipo2'}).find('a', href=True).find('img', alt=True).get('alt')
+    #Excepccion:
+    if 'Deportivo' in teamOne:
+        teamOne = 'Deportivo'
+    if 'Deportivo' in teamTwo:
+        teamTwo = 'Deportivo'
     [teamDataOne, teamDataOneImportant] = getEquipo(teamOne, listaDeEquipos).getDataframe()
     [teamDataTwo, teamDataTwoImportant] = getEquipo(teamTwo, listaDeEquipos).getDataframe()
     matchs = pd.concat([teamDataOneImportant, teamDataTwoImportant])
