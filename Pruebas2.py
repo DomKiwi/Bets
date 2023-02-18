@@ -1,6 +1,4 @@
-# from selenium import webdriver
 import itertools
-
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
@@ -15,8 +13,7 @@ import atexit
 import xlsxwriter
 from vincent.colors import brews
 
-# from IPython.display import display
-
+###########################################################     TEAMS CLASS     ###############################################################################
 # Clasificacion de Equipos con sus respectivos datos
 # de interes como puntos, victorias, equipos contrarios vencidos, etc..
 class Equipo:
@@ -175,9 +172,8 @@ class Equipo:
         return recopilacionequipo, recopilacionImportanteEquipo
 
 
-####################################################################################################################################################################
+###########################################################     EXCEL CLASS     ###############################################################################
 # Create excel to write data call it more times if I want
-
 class excelWriter:
     writerName = ''
     def __init__(self,writerName, data = pd.DataFrame(),nameSheet = ''):
@@ -204,13 +200,12 @@ class excelWriter:
         self.writer.close()
         print('Guardando el excel de datos pedidos')
 
-####################################################################################################################################################################
+#################################################   FUNCTIONS   ##################################################################################################
 # MODULES
 def getEquipo(teamName, listaDeEquipos):
     for b in listaDeEquipos:
         if b.name == teamName:
             return b
-
 
 def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
     if (iter <= 0): return
@@ -222,7 +217,6 @@ def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
         iter -= 1
         teamsCountedAlready.append(G)
         metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready)
-
 
 def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
     if (iter <= 0): return
@@ -277,226 +271,118 @@ def createExcelNextMatches(route, listOfTeams,excel):
         # plt.show()
         excel.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
 
-# Close the program
-def endProgram(excels):
+def endProgram(excels):     #Close the program
     atexit.register(excels)
-####################################################################################################################################################################
-######################################################  FIRST MODULE / FIRST DIVISION   ############################################################################
-####################################################################################################################################################################
 
-listaDeEquiposDePrimera = []
+def searchForEachLeague(route):
+    listOfTeams = []
 
-# Lets start the program searching for Data in website
+    # Lets start the program searching for Data in website
+    soupOfLeague = BeautifulSoup(pagePrimeraDivision.text, 'html.parser')  # Use this format to read it
+
+    blockquote_items = soupOfLeague.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
+    blockquote_items = blockquote_items.find('tbody')
+    blockquote_items = blockquote_items.find_all('tr')
+
+    # Get name of teams and create a class for each one
+    for num, blockquote in enumerate(blockquote_items):
+        equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
+        team = Equipo(equipo)
+        listOfTeams.append(team)
+
+    ####################################################################################################################################################################
+    # del bloque buscado empiezo a obtener los datos
+    for num, blockquote in enumerate(blockquote_items):
+        # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
+        columnaPosiciones = \
+            blockquote.find("th",
+                            {"class": ["pos2 pos-cha", "pos3 pos-uefa", "pos5 pos-conf", "", "pos6 pos-desc", "pos2 pos-asc", "pos3 pos-play", "pos5 pos-desc"]}).contents[0]
+        equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
+        puntos = blockquote.find("td", {"class": "pts"}).contents[0]
+        partidos = blockquote.find("td", {"class": "pj"}).contents[0]
+        wins = blockquote.find("td", {"class": "win"}).contents[0]
+        draws = blockquote.find("td", {"class": "draw"}).contents[0]
+        loses = blockquote.find("td", {"class": "lose"}).contents[0]
+        afavor = blockquote.find("td", {"class": "f"}).contents[0]
+        encontra = blockquote.find("td", {"class": "c"}).contents[0]
+
+        resultadopartidos = blockquote.find_all("span", {"class": "classicsmall"})
+        equiposQueHaGanado = []
+        equiposQueHaperdido = []
+        equiposQueHaEmpatado = []
+        golesAfavorUltimasJornadas = 0
+        golesEncontraUltimasJornadas = 0
+        minimosGoles = 100
+        maximosGoles = 0
+        minimosGolesEnContra = 100
+        maximosGolesEnContra = 0
+        for x, resultado in enumerate(resultadopartidos):
+            if x == 0: continue
+            resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
+            equiposDelPartido = resultado.find_all("b", {"class": "bname"})
+            ambosEquipos = [b.get_text() for b in equiposDelPartido]
+            equipoContrario = ambosEquipos.copy()
+            equipoContrario.remove(equipo)
+            golesDelPartido = resultado.find_all("b", {"class": "bres"})
+            golesDeAmbos = [b.get_text() for b in golesDelPartido]
+            equiposYgoles = dict(map(lambda i, j: (i, j), ambosEquipos, golesDeAmbos))
+
+            if int(equiposYgoles[equipo]) > maximosGoles: maximosGoles = int(equiposYgoles[equipo])
+            if int(equiposYgoles[equipo]) < minimosGoles: minimosGoles = int(equiposYgoles[equipo])
+            if int(equiposYgoles[equipoContrario[0]]) > maximosGolesEnContra: maximosGolesEnContra = int(
+                equiposYgoles[equipoContrario[0]])
+            if int(equiposYgoles[equipoContrario[0]]) < minimosGolesEnContra: minimosGolesEnContra = int(
+                equiposYgoles[equipoContrario[0]])
+
+            golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
+            golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
+
+            teamObject = getEquipo(equipo, listOfTeams)
+            newEnemyName = equipoContrario[0]
+            newEnemyObject = getEquipo(newEnemyName, listOfTeams)
+            if resultadoDelPartido == 'VICTORIA':
+                equiposQueHaGanado.append(newEnemyObject)
+            if resultadoDelPartido == 'DERROTA':
+                equiposQueHaperdido.append(newEnemyObject)
+            if resultadoDelPartido == 'EMPATE':
+                equiposQueHaEmpatado.append(newEnemyObject)
+
+        numDePartidos = len(equiposQueHaGanado) + len(equiposQueHaperdido) + len(equiposQueHaEmpatado)
+        mediaGolPorPartidoMarcados = golesAfavorUltimasJornadas / numDePartidos
+        mediaGolPorPartidoEnContra = golesEncontraUltimasJornadas / numDePartidos
+
+        teamObject.setvalues(columnaPosiciones, puntos, partidos, wins, draws, loses,
+                             afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
+                             golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
+                             maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
+                             mediaGolPorPartidoEnContra)
+    return listOfTeams, soupOfLeague
+######################################################  Create List of Teams objects   ############################################################################
+
 pagePrimeraDivision = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
-soupPrimeraDivision = BeautifulSoup(pagePrimeraDivision.text, 'html.parser')  # Use this format to read it
-
-blockquote_items = soupPrimeraDivision.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
-blockquote_items = blockquote_items.find('tbody')
-blockquote_items = blockquote_items.find_all('tr')
-
-# Get name of teams and create a class for each one
-for num, blockquote in enumerate(blockquote_items):
-    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-    team = Equipo(equipo)
-    listaDeEquiposDePrimera.append(team)
-
-####################################################################################################################################################################
-# del bloque buscado empiezo a obtener los datos
-for num, blockquote in enumerate(blockquote_items):
-    # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
-    columnaPosiciones = \
-        blockquote.find("th",
-                        {"class": ["pos2 pos-cha", "pos3 pos-uefa", "pos5 pos-conf", "", "pos6 pos-desc"]}).contents[0]
-    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-    puntos = blockquote.find("td", {"class": "pts"}).contents[0]
-    partidos = blockquote.find("td", {"class": "pj"}).contents[0]
-    wins = blockquote.find("td", {"class": "win"}).contents[0]
-    draws = blockquote.find("td", {"class": "draw"}).contents[0]
-    loses = blockquote.find("td", {"class": "lose"}).contents[0]
-    afavor = blockquote.find("td", {"class": "f"}).contents[0]
-    encontra = blockquote.find("td", {"class": "c"}).contents[0]
-
-    resultadopartidos = blockquote.find_all("span", {"class": "classicsmall"})
-    equiposQueHaGanado = []
-    equiposQueHaperdido = []
-    equiposQueHaEmpatado = []
-    golesAfavorUltimasJornadas = 0
-    golesEncontraUltimasJornadas = 0
-    minimosGoles = 100
-    maximosGoles = 0
-    minimosGolesEnContra = 100
-    maximosGolesEnContra = 0
-    for x, resultado in enumerate(resultadopartidos):
-        if x == 0: continue
-        resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
-        equiposDelPartido = resultado.find_all("b", {"class": "bname"})
-        ambosEquipos = [b.get_text() for b in equiposDelPartido]
-        equipoContrario = ambosEquipos.copy()
-        equipoContrario.remove(equipo)
-        golesDelPartido = resultado.find_all("b", {"class": "bres"})
-        golesDeAmbos = [b.get_text() for b in golesDelPartido]
-        equiposYgoles = dict(map(lambda i, j: (i, j), ambosEquipos, golesDeAmbos))
-
-        if int(equiposYgoles[equipo]) > maximosGoles: maximosGoles = int(equiposYgoles[equipo])
-        if int(equiposYgoles[equipo]) < minimosGoles: minimosGoles = int(equiposYgoles[equipo])
-        if int(equiposYgoles[equipoContrario[0]]) > maximosGolesEnContra: maximosGolesEnContra = int(
-            equiposYgoles[equipoContrario[0]])
-        if int(equiposYgoles[equipoContrario[0]]) < minimosGolesEnContra: minimosGolesEnContra = int(
-            equiposYgoles[equipoContrario[0]])
-
-        golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
-        golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
-
-        teamObject = getEquipo(equipo, listaDeEquiposDePrimera)
-        newEnemyName = equipoContrario[0]
-        newEnemyObject = getEquipo(newEnemyName, listaDeEquiposDePrimera)
-        if resultadoDelPartido == 'VICTORIA':
-            equiposQueHaGanado.append(newEnemyObject)
-        if resultadoDelPartido == 'DERROTA':
-            equiposQueHaperdido.append(newEnemyObject)
-        if resultadoDelPartido == 'EMPATE':
-            equiposQueHaEmpatado.append(newEnemyObject)
-
-    numDePartidos = len(equiposQueHaGanado) + len(equiposQueHaperdido) + len(equiposQueHaEmpatado)
-    mediaGolPorPartidoMarcados = golesAfavorUltimasJornadas / numDePartidos
-    mediaGolPorPartidoEnContra = golesEncontraUltimasJornadas / numDePartidos
-
-    teamObject.setvalues(columnaPosiciones, puntos, partidos, wins, draws, loses,
-                         afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
-                         golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
-                         maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
-                         mediaGolPorPartidoEnContra)
-
-
-
-####################################################################################################################################################################
-######################################################  SECOND MODULE / SECOND DIVISION   ############################################################################
-####################################################################################################################################################################
-# Lets start the program searching for Data in website
+listaDeEquiposDePrimera, soupPrimeraDivision = searchForEachLeague(pagePrimeraDivision)
 pageSegundaDivision = requests.get('https://www.resultados-futbol.com/segunda')  # Get URL
-soupSegundaDivison = BeautifulSoup(pageSegundaDivision.text, 'html.parser')  # Use this format to read it
+listaDeEquiposDeSegunda, soupSegundaDivision = searchForEachLeague(pageSegundaDivision)
 
-blockquote_items = soupSegundaDivison.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
-blockquote_items = blockquote_items.find('tbody')
-blockquote_items = blockquote_items.find_all('tr')
-
-listaDeEquiposDeSegunda = []
-# Get name of teams and create a class for each one
-for num, blockquote in enumerate(blockquote_items):
-    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-    team = Equipo(equipo)
-    listaDeEquiposDeSegunda.append(team)
-
-####################################################################################################################################################################
-# del bloque buscado empiezo a obtener los datos
-for num, blockquote in enumerate(blockquote_items):
-    # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
-    columnaPosiciones = \
-        blockquote.find("th",
-                        {"class": ["pos2 pos-asc", "pos2 pos-asc", "pos3 pos-play", "", "pos5 pos-desc"]}).contents[0]
-    equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-    puntos = blockquote.find("td", {"class": "pts"}).contents[0]
-    partidos = blockquote.find("td", {"class": "pj"}).contents[0]
-    wins = blockquote.find("td", {"class": "win"}).contents[0]
-    draws = blockquote.find("td", {"class": "draw"}).contents[0]
-    loses = blockquote.find("td", {"class": "lose"}).contents[0]
-    afavor = blockquote.find("td", {"class": "f"}).contents[0]
-    encontra = blockquote.find("td", {"class": "c"}).contents[0]
-
-    resultadopartidos = blockquote.find_all("span", {"class": "classicsmall"})
-    equiposQueHaGanado = []
-    equiposQueHaperdido = []
-    equiposQueHaEmpatado = []
-    golesAfavorUltimasJornadas = 0
-    golesEncontraUltimasJornadas = 0
-    minimosGoles = 100
-    maximosGoles = 0
-    minimosGolesEnContra = 100
-    maximosGolesEnContra = 0
-    for x, resultado in enumerate(resultadopartidos):
-        if x == 0: continue
-        resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
-        equiposDelPartido = resultado.find_all("b", {"class": "bname"})
-        ambosEquipos = [b.get_text() for b in equiposDelPartido]
-        for num,b in enumerate(ambosEquipos):       #Correccion por culpa de la Website de cambiar nombres asi porque si
-            if equipo in b:
-                ambosEquipos[num] = equipo
-            if 'Deportivo' in b:
-                ambosEquipos[num] = 'Deportivo'
-        equipoContrario = ambosEquipos.copy()
-        equipoContrario.remove(equipo)
-        golesDelPartido = resultado.find_all("b", {"class": "bres"})
-        golesDeAmbos = [b.get_text() for b in golesDelPartido]
-        equiposYgoles = dict(map(lambda i, j: (i, j), ambosEquipos, golesDeAmbos))
-
-        if int(equiposYgoles[equipo]) > maximosGoles: maximosGoles = int(equiposYgoles[equipo])
-        if int(equiposYgoles[equipo]) < minimosGoles: minimosGoles = int(equiposYgoles[equipo])
-        if int(equiposYgoles[equipoContrario[0]]) > maximosGolesEnContra: maximosGolesEnContra = int(
-            equiposYgoles[equipoContrario[0]])
-        if int(equiposYgoles[equipoContrario[0]]) < minimosGolesEnContra: minimosGolesEnContra = int(
-            equiposYgoles[equipoContrario[0]])
-
-        golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
-        golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
-
-        teamObject = getEquipo(equipo, listaDeEquiposDeSegunda)
-        newEnemyName = equipoContrario[0]
-        newEnemyObject = getEquipo(newEnemyName, listaDeEquiposDeSegunda)
-        if resultadoDelPartido == 'VICTORIA':
-            equiposQueHaGanado.append(newEnemyObject)
-        if resultadoDelPartido == 'DERROTA':
-            equiposQueHaperdido.append(newEnemyObject)
-        if resultadoDelPartido == 'EMPATE':
-            equiposQueHaEmpatado.append(newEnemyObject)
-
-    numDePartidos = len(equiposQueHaGanado) + len(equiposQueHaperdido) + len(equiposQueHaEmpatado)
-    mediaGolPorPartidoMarcados = golesAfavorUltimasJornadas / numDePartidos
-    mediaGolPorPartidoEnContra = golesEncontraUltimasJornadas / numDePartidos
-
-    teamObject.setvalues(columnaPosiciones, puntos, partidos, wins, draws, loses,
-                         afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
-                         golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
-                         maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
-                         mediaGolPorPartidoEnContra)
-
-####################################################################################################################################################################
-# Get points of Streght and Weakness
+########################################################  Get points of Streght and Weakness     ###################################################################
 addPointsStrengthWeakness(listaDeEquiposDePrimera)
 addPointsStrengthWeakness(listaDeEquiposDeSegunda)
 
-####################################################################################################################################################################
-# Get Dataframe
+####################################################################  Get Dataframe  ################################################################################
 dataRawPrimeraDivision, dataKeyPrimeraDivision = createDataFrame(listaDeEquiposDePrimera)
 dataRawSegundaDivision, dataKeySegundaDivision = createDataFrame(listaDeEquiposDeSegunda)
-####################################################################################################################################################################
-# variable = dataframeDatosImportantes.columns[0]
-# plt.xticks(x=variable)
-# ay = np.arange(-2, 100, 1)
-# for name in dataframeDatosImportantes.columns:
-#     if name == variable:
-#         continue
-#     rand_color = (randrange(255), randrange(255), randrange(255))  # crea colores rgb aleatorios
-#     # gca stands for 'get current axis'
-#     # ax = plt.gca()
-#     fig, ax = plt.subplots()
-#     ax.step(x=dataframeDatosImportantes[variable], y=dataframeDatosImportantes[name], linewidth=2)
-#     maxValue = dataframeDatosImportantes[name].max()
-#     ax.set(ylim=(-2, maxValue), yticks=np.arange(-2, maxValue, 1))
-#     # dataframeDatosImportantes.plot(kind='step', x=variable, y=name, ax=ax)
-# # plt.show()
 
-####################################################################################################################################################################
-#create excels
+#################################################################   Excel Data  #####################################################################################
+# Create excels
 excelPrimeraDivision = excelWriter('Output Primera Division.xlsx')
 excelSegundaDivision = excelWriter('Output Segunda Division.xlsx')
 # Next match take from soup
 createExcelNextMatches(soupPrimeraDivision, listaDeEquiposDePrimera, excelPrimeraDivision)
-createExcelNextMatches(soupSegundaDivison, listaDeEquiposDeSegunda, excelSegundaDivision)
-
-####################################################################################################################################################################
+createExcelNextMatches(soupSegundaDivision, listaDeEquiposDeSegunda, excelSegundaDivision)
 # Obtener excel final
 excelPrimeraDivision.excelWriterFunction(dataRawPrimeraDivision, "Data Raw Primera")
 excelSegundaDivision.excelWriterFunction(dataRawSegundaDivision, "Data Raw Segunda")
 
-# Close Program
+#################################################################   Program Closure  #####################################################################################
+# Program Closure
 exit(endProgram((excelPrimeraDivision.closingProgram(), excelSegundaDivision.closingProgram())))
