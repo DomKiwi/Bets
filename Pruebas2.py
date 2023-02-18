@@ -203,7 +203,7 @@ class excelWriter:
     def closingProgram(self):
         self.writer.close()
         print('Guardando el excel de datos pedidos')
-excelGlobal = excelWriter('Output.xlsx')
+
 ####################################################################################################################################################################
 # MODULES
 def getEquipo(teamName, listaDeEquipos):
@@ -251,7 +251,7 @@ def createDataFrame(listOfTeams):
         dataframeDatosImportantes = pd.concat([dataframeDatosImportantes, dataframeKeyData])
     return dataframetotal, dataframeDatosImportantes
 
-def createExcelNextMatches(route, listOfTeams):
+def createExcelNextMatches(route, listOfTeams,excel):
     routeNextMatch = route.find('table', {'id': 'tabla1'})
     routeNextMatch = routeNextMatch.find_all('tr', {'class': ['vevent', 'vevent impar']})
     for j, nextMatch in enumerate(routeNextMatch):
@@ -275,7 +275,11 @@ def createExcelNextMatches(route, listOfTeams):
             ax = plt.gca()
             matchs.plot(kind='line', x=var, y=i, ax=ax)
         # plt.show()
-        excelGlobal.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
+        excel.excelWriterFunction(matchs, teamOne + ' vs ' + teamTwo)
+
+# Close the program
+def endProgram(excels):
+    atexit.register(excels)
 ####################################################################################################################################################################
 ######################################################  FIRST MODULE / FIRST DIVISION   ############################################################################
 ####################################################################################################################################################################
@@ -482,14 +486,17 @@ dataRawSegundaDivision, dataKeySegundaDivision = createDataFrame(listaDeEquiposD
 # # plt.show()
 
 ####################################################################################################################################################################
+#create excels
+excelPrimeraDivision = excelWriter('Output Primera Division.xlsx')
+excelSegundaDivision = excelWriter('Output Segunda Division.xlsx')
 # Next match take from soup
-createExcelNextMatches(soupPrimeraDivision, listaDeEquiposDePrimera)
-createExcelNextMatches(soupSegundaDivison, listaDeEquiposDeSegunda)
+createExcelNextMatches(soupPrimeraDivision, listaDeEquiposDePrimera, excelPrimeraDivision)
+createExcelNextMatches(soupSegundaDivison, listaDeEquiposDeSegunda, excelSegundaDivision)
 
 ####################################################################################################################################################################
 # Obtener excel final
-excelGlobal.excelWriterFunction(dataRawPrimeraDivision, "Data Raw Primera")
-excelGlobal.excelWriterFunction(dataRawSegundaDivision, "Data Raw Segunda")
-# print(dataframetotal.to_string())
-atexit.register(excelGlobal.closingProgram())
-# exit(excelGlobal.closingProgram())º
+excelPrimeraDivision.excelWriterFunction(dataRawPrimeraDivision, "Data Raw Primera")
+excelSegundaDivision.excelWriterFunction(dataRawSegundaDivision, "Data Raw Segunda")
+
+# Close Program
+exit(endProgram((excelPrimeraDivision.closingProgram(), excelSegundaDivision.closingProgram())))
