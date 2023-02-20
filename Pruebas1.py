@@ -1,96 +1,213 @@
-####################################################################################################################################################################
-######################################################  FIRST MODULE / FIRST DIVISION   ############################################################################
-####################################################################################################################################################################
-pagePrimeraDivision = requests.get('https://www.resultados-futbol.com/primera')  # Get URL
+import itertools
+from bs4 import BeautifulSoup
+import pandas as pd
+import requests
+import time
+import matplotlib.pyplot as plt
+from random import randrange
+import numpy as np
+import openpyxl as pxl
+import os
+import zipfile
+import atexit
+import xlsxwriter
+from vincent.colors import brews
 
-def searchForEachLeague(route):
+class Equipo:
+    # Agrego valores iniciales de los datos que me interesan de la pagina web como otros que quiera crear yo nuevos
+    name = ""
+    columnaPosiciones = 0
+    puntos = 0
+    partidos = 0
+    wins = 0
+    loses = 0
+    draws = 0
+    afavor = 0
+    encontra = 0
+    equiposQueHaGanado = []
+    equiposQueHaPerdido = []
+    equiposQueHaEmpatado = []
+    puntosGanados = 0
+    puntosPerdidos = 0
+    puntosEmpatados = 0
+    golesEncontraUltimasJornadas = 0
+    golesAfavorUltimasJornadas = 0
+    maximosGoles = 0
+    minimosGoles = 0
+    maximosGolesEnContra = 0
+    minimosGolesEnContra = 0
+    mediaGolPorPartidoMarcados = 0
+    mediaGolPorPartidoEnContra = 0
+    # puntosDeFuerza = len(equiposQueHaGanado)
+    puntosDeDebilidad = 0
+    puntosDeFuerza = 0
+    equiposQueHaEmpatadoNombre = []
+    equiposQueHaGanadoNombre = []
+    equiposQueHaPerdidoNombre = []
+
+    def __init__(self, name, columnasPosiciones=0, puntos=0, partidos=0, wins=0,
+                 draws=0, loses=0, afavor=0, encontra=0, ganados=[], perdidos=[], empatados=[],
+                 golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
+                 maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
+                 mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
+        self.name = name
+        self.setvalues(columnasPosiciones, puntos, partidos, wins,
+                       draws, loses, afavor, encontra, ganados, perdidos, empatados,
+                       golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
+                       maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
+                       mediaGolPorPartidoEnContra)
+
+    def setvalues(self, columnasPosiciones=0, puntos=0, partidos=0, wins=0,
+                  draws=0, loses=0, afavor=0, encontra=0, ganados=[], perdidos=[], empatados=[],
+                  golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
+                  maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
+                  mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
+        self.columnaPosiciones = columnasPosiciones
+        self.puntos = puntos
+        self.partidos = partidos
+        self.wins = wins
+        self.loses = loses
+        self.draws = draws
+        self.afavor = afavor
+        self.encontra = encontra
+        self.equiposQueHaGanado = ganados
+        self.equiposQueHaPerdido = perdidos
+        self.equiposQueHaEmpatado = empatados
+        self.golesAfavorUltimasJornadas = golesAfavorUltimasJornadas
+        self.golesEncontraUltimasJornadas = golesEncontraUltimasJornadas
+        self.maximosGoles = maximosGoles
+        self.minimosGoles = minimosGoles
+        self.maximosGolesEnContra = maximosGolesEnContra
+        self.minimosGolesEnContra = minimosGolesEnContra
+        self.mediaGolPorPartidoMarcados = mediaGolPorPartidoMarcados
+        self.mediaGolPorPartidoEnContra = mediaGolPorPartidoEnContra
+
+    def transformData(self):
+        self.equiposQueHaGanadoNombre = [tm.name for tm in self.equiposQueHaGanado]
+        self.equiposQueHaPerdidoNombre = [tm.name for tm in self.equiposQueHaPerdido]
+        self.equiposQueHaEmpatadoNombre = [tm.name for tm in self.equiposQueHaEmpatado]
+
+    def getDataframe(self):  # de los valores que estoy trabajando, los meto en un dataframe para manejarlos mejor
+        self.transformData()
+        recopilacionequipo = [
+            self.columnaPosiciones,
+            self.name,
+            self.puntos,
+            self.partidos,
+            self.wins,
+            self.draws,
+            self.loses,
+            self.afavor,
+            self.encontra,
+            self.equiposQueHaGanadoNombre,
+            self.equiposQueHaPerdidoNombre,
+            self.equiposQueHaEmpatadoNombre,
+            self.golesAfavorUltimasJornadas,
+            self.golesEncontraUltimasJornadas,
+            self.maximosGoles,
+            self.minimosGoles,
+            self.maximosGolesEnContra,
+            self.minimosGolesEnContra,
+            self.mediaGolPorPartidoMarcados,
+            self.mediaGolPorPartidoEnContra,
+            self.puntosDeFuerza,
+            self.puntosDeDebilidad
+        ]
+        recopilacionImportanteEquipo = [
+            self.name,
+            self.golesAfavorUltimasJornadas,
+            self.golesEncontraUltimasJornadas,
+            self.maximosGoles,
+            self.minimosGoles,
+            self.maximosGolesEnContra,
+            self.minimosGolesEnContra,
+            self.mediaGolPorPartidoMarcados,
+            self.mediaGolPorPartidoEnContra,
+            self.puntosDeFuerza,
+            self.puntosDeDebilidad
+        ]
+        recopilacionequipo = pd.DataFrame(recopilacionequipo).transpose()
+        recopilacionImportanteEquipo = pd.DataFrame(recopilacionImportanteEquipo).transpose()
+
+        recopilacionequipo.columns = [
+            "Position",
+            "Team",
+            "Points",
+            "Matches",
+            "Wins",
+            "Draws",
+            "Loses",
+            "G_Scored",
+            "G_Against",
+            "Won vs",
+            "Lost vs",
+            "Draw vs",
+            "G_Scored last_4",
+            "G_Against last_4",
+            "Max G_Scored last_4",
+            "Min G_Scored last_4",
+            "Max G_Against last_4",
+            "Min G_Against last_4",
+            "Averg G_Scored last_4",
+            "Averg G_Against last_4",
+            "Strength Points",
+            "Weakness Points"
+        ]
+        recopilacionImportanteEquipo.columns = [
+            "Team",
+            "G_Scored last_4",
+            "G_Against last_4",
+            "Max G_Scored last_4",
+            "Min G_Scored last_4",
+            "Max G_Against last_4",
+            "Min G_Against last_4",
+            "Averg G_Scored last_4",
+            "Averg G_Against last_4",
+            "Strength Points",
+            "Weakness Points"
+        ]
+        return recopilacionequipo, recopilacionImportanteEquipo
+
+def getTeamsObjects(soupOfTeams):
     listOfTeams = []
+    tableData = soupOfTeams.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
+    eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
+    for row in eachRowMatch:
+        results = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
+        teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+        lenOfTeams = len(teams)
+        for i in range(lenOfTeams):
+            # print(teams[i].contents[0], results[i].contents[0])
+            teamClass = Equipo(teams[i].contents[0])
+            listOfTeams.append(teamClass)
+        # for t in teams:
+        #     listOfTeams.append(t.contents[0])
+        #     print(t.contents[0])
+        # # goals = soupOfTeams.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
+        # for r in results:
+        #     g = r.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
+        #     for gg in g:
+        #         print(gg.contents[0])
+        # break
 
-    # Lets start the program searching for Data in website
-    soupPrimeraDivision = BeautifulSoup(pagePrimeraDivision.text, 'html.parser')  # Use this format to read it
-
-    blockquote_items = soupPrimeraDivision.find('table', {'id': 'tabla2'})  # Use Bs4 to find specific data
-    blockquote_items = blockquote_items.find('tbody')
-    blockquote_items = blockquote_items.find_all('tr')
-
-    # Get name of teams and create a class for each one
-    for num, blockquote in enumerate(blockquote_items):
-        equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-        team = Equipo(equipo)
-        listOfTeams.append(team)
-
-    ####################################################################################################################################################################
-    # del bloque buscado empiezo a obtener los datos
-    for num, blockquote in enumerate(blockquote_items):
-        # con cada equipo poner su fila en horizontal todos los datos, escribo todas las opciones para que recoga los datos
-        columnaPosiciones = \
-            blockquote.find("th",
-                            {"class": ["pos2 pos-cha", "pos3 pos-uefa", "pos5 pos-conf", "", "pos6 pos-desc", "pos2 pos-asc", "pos3 pos-play", "pos5 pos-desc"]}).contents[0]
-        equipo = blockquote.find("td", {"class": ["equipo", "equipo sube", "equipo baja"]}).find('a').contents[0]
-        puntos = blockquote.find("td", {"class": "pts"}).contents[0]
-        partidos = blockquote.find("td", {"class": "pj"}).contents[0]
-        wins = blockquote.find("td", {"class": "win"}).contents[0]
-        draws = blockquote.find("td", {"class": "draw"}).contents[0]
-        loses = blockquote.find("td", {"class": "lose"}).contents[0]
-        afavor = blockquote.find("td", {"class": "f"}).contents[0]
-        encontra = blockquote.find("td", {"class": "c"}).contents[0]
-
-        resultadopartidos = blockquote.find_all("span", {"class": "classicsmall"})
-        equiposQueHaGanado = []
-        equiposQueHaperdido = []
-        equiposQueHaEmpatado = []
-        golesAfavorUltimasJornadas = 0
-        golesEncontraUltimasJornadas = 0
-        minimosGoles = 100
-        maximosGoles = 0
-        minimosGolesEnContra = 100
-        maximosGolesEnContra = 0
-        for x, resultado in enumerate(resultadopartidos):
-            if x == 0: continue
-            resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
-            equiposDelPartido = resultado.find_all("b", {"class": "bname"})
-            ambosEquipos = [b.get_text() for b in equiposDelPartido]
-            for num_1, b in enumerate(
-                    ambosEquipos):  # Correccion por culpa de la Website de cambiar nombres asi porque si
-                if equipo in b:
-                    ambosEquipos[num_1] = equipo
-                if 'Deportivo' in b:
-                    ambosEquipos[num_1] = 'Deportivo'
-            equipoContrario = ambosEquipos.copy()
-            equipoContrario.remove(equipo)
-            golesDelPartido = resultado.find_all("b", {"class": "bres"})
-            golesDeAmbos = [b.get_text() for b in golesDelPartido]
-            equiposYgoles = dict(map(lambda i, j: (i, j), ambosEquipos, golesDeAmbos))
-
-            if int(equiposYgoles[equipo]) > maximosGoles: maximosGoles = int(equiposYgoles[equipo])
-            if int(equiposYgoles[equipo]) < minimosGoles: minimosGoles = int(equiposYgoles[equipo])
-            if int(equiposYgoles[equipoContrario[0]]) > maximosGolesEnContra: maximosGolesEnContra = int(
-                equiposYgoles[equipoContrario[0]])
-            if int(equiposYgoles[equipoContrario[0]]) < minimosGolesEnContra: minimosGolesEnContra = int(
-                equiposYgoles[equipoContrario[0]])
-
-            golesAfavorUltimasJornadas = golesAfavorUltimasJornadas + int(equiposYgoles[equipo])
-            golesEncontraUltimasJornadas = golesEncontraUltimasJornadas + int(equiposYgoles[equipoContrario[0]])
-
-            teamObject = getEquipo(equipo, listOfTeams)
-            newEnemyName = equipoContrario[0]
-            newEnemyObject = getEquipo(newEnemyName, listOfTeams)
-            if resultadoDelPartido == 'VICTORIA':
-                equiposQueHaGanado.append(newEnemyObject)
-            if resultadoDelPartido == 'DERROTA':
-                equiposQueHaperdido.append(newEnemyObject)
-            if resultadoDelPartido == 'EMPATE':
-                equiposQueHaEmpatado.append(newEnemyObject)
-
-        numDePartidos = len(equiposQueHaGanado) + len(equiposQueHaperdido) + len(equiposQueHaEmpatado)
-        mediaGolPorPartidoMarcados = golesAfavorUltimasJornadas / numDePartidos
-        mediaGolPorPartidoEnContra = golesEncontraUltimasJornadas / numDePartidos
-
-        teamObject.setvalues(columnaPosiciones, puntos, partidos, wins, draws, loses,
-                             afavor, encontra, equiposQueHaGanado, equiposQueHaperdido, equiposQueHaEmpatado,
-                             golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
-                             maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
-                             mediaGolPorPartidoEnContra)
+    # for team in currentDay:
+    #     teamObject = Equipo(team.contents[0])
+    #     listOfTeams.append(teamObject)
     return listOfTeams
 
-listaDeEquiposDePrimera = searchForEachLeague(pagePrimeraDivision)
+def getEquipo(teamName, listaDeEquipos):
+    for b in listaDeEquipos:
+        if b.name == teamName:
+            return b
+
+# route = requests.get('https://www.laliga.com/laliga-santander/resultados')  # Get URL
+route = requests.get('https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-20')  # Get URL
+
+soupOfTeams = BeautifulSoup(route.text, 'html.parser')  # Use this format to read it
+
+#For day BASE (obtener), -i to iter (4,5,6,7...) result efficiency
+
+listOfPrimera = getTeamsObjects(soupOfTeams)
+#obtener modulo de partidos de X jornada:
+for i in listOfPrimera:
+    print(i.name)

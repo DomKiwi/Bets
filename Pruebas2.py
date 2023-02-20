@@ -314,7 +314,6 @@ def searchForEachLeague(route):
         minimosGolesEnContra = 100
         maximosGolesEnContra = 0
         for x, resultado in enumerate(resultadopartidos):
-            if x == 0: continue
             resultadoDelPartido = resultado.find("li", {"class": "title g"}).contents[0]
             equiposDelPartido = resultado.find_all("b", {"class": "bname"})
             ambosEquipos = [b.get_text() for b in equiposDelPartido]
@@ -327,7 +326,6 @@ def searchForEachLeague(route):
                 if 'Levante' in c and 'Planas' in c:
                     ambosEquipos[num_1] = 'Levante Planas'
             equipoContrario = ambosEquipos.copy()
-            print(equipo, equipoContrario)
             equipoContrario.remove(equipo)
             golesDelPartido = resultado.find_all("b", {"class": "bres"})
             golesDeAmbos = [b.get_text() for b in golesDelPartido]
