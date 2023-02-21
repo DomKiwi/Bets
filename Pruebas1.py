@@ -162,7 +162,7 @@ def getTeamsObjects(route):
 
 ###################################################################################################################################################################
 
-def getResults(route, listOfTeams):
+def getResults(route, listOfTeams,resultsEmpty):
     tableData = route.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
     eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
     resultadosPartidos = []
@@ -171,8 +171,12 @@ def getResults(route, listOfTeams):
         results = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
         teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
         lenOfTeams = len(teams)
-        for i in range(lenOfTeams):
-            match[teams[i].contents[0]] = results[i].contents[0]
+        if resultsEmpty is True:
+            for i in range(lenOfTeams):
+                match[teams[i].contents[0]] = 0
+        else:
+            for i in range(lenOfTeams):
+                match[teams[i].contents[0]] = results[i].contents[0]
         resultadosPartidos.append(match)
     return resultadosPartidos
 ###################################################################################################################################################################
@@ -299,7 +303,7 @@ def maxProbability(soupOfTeams, itermax, journeyRefResults, listOfTeams):
     jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
     for numLink, link in enumerate(linkJP):
         ruta = getLinkHtml(link)
-        resultados = getResults(ruta, listOfTeams)
+        resultados = getResults(ruta, listOfTeams, False)
         resultadosR = lecturaDeJornada(resultados, listOfTeams)
 
     # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
@@ -333,24 +337,21 @@ def maxProbability(soupOfTeams, itermax, journeyRefResults, listOfTeams):
 
 
 ###################################################################################################################################################################
-soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados')
+soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-23')
+# soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados')
+
 
 ###################################################################################################################################################################
 
 #For day BASE (obtener), -i to iter (4,5,6,7...) result efficiency
 # Set inicial
 listOfPrimera= getTeamsObjects(soupOfTeams)
-resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera)
-
-
-
+resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera, True)
+# resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera, False) #CUANDO QUIERA COMPROBAR EL METODO
 
 ###################################################################################################################################################################
-
-
-
-
-itermax = 15
+# Obtengo probabilidad de cada caso que yo busque
+itermax = 10
 valorInicialAcierto = 0     # % Porcentaje
 for numIter in range(1, itermax, 1):
     porcentajeAcierto = maxProbability(soupOfTeams, numIter, resultadosJornadaDeReferencia, listOfPrimera)
