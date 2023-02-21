@@ -275,26 +275,60 @@ soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados')
 listOfPrimera= getTeamsObjects(soupOfTeams)
 resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera)
 
-itermax = 4
-jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
-
-# def maxProbability(linkJP,journeyRefResults, listOfTeams):
-#     resultadosR = lecturaDeJornada(journeyRefResults,listOfTeams)
-#     for partido in resultadosR:
-#         print(partido)
-# maxProbability(linkJP,resultadosJornadaDeReferencia, listOfPrimera)
 
 
 
-for link in linkJP:
-    ruta = getLinkHtml(link)
-    resultados = getResults(ruta, listOfPrimera)
-    resultadosR = lecturaDeJornada(resultados, listOfPrimera)
-
-#llamo al metodo puntos Fuerza y debilidad
-addPointsStrengthWeakness(listOfPrimera)
 
 ###################################################################################################################################################################
+
+
+def maxProbability(soupOfTeams, itermax, journeyRefResults, listOfTeams):
+
+    jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
+    for link in linkJP:
+        ruta = getLinkHtml(link)
+        resultados = getResults(ruta, listOfPrimera)
+        resultadosR = lecturaDeJornada(resultados, listOfPrimera)
+
+    # llamo al metodo puntos Fuerza y debilidad
+    addPointsStrengthWeakness(listOfPrimera)
+
+    resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams)
+    numHits = 0
+    for partido in resultadosTotal:
+        llaves = list(partido.keys())
+        team_1 = getEquipo(llaves[0], listOfTeams)
+        team_2 = getEquipo(llaves[1], listOfTeams)
+        pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
+        pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
+        minimumP = min([pointsTeam_1, pointsTeam_2])
+        if minimumP == 0:
+            minimumP = 0.00000001
+        pointsTeam_1_Normalized = round(pointsTeam_1/minimumP, 2)
+        pointsTeam_2_Normalized = round(pointsTeam_2/minimumP, 2)
+        margenError = 0.05      #variar Dinamicamente
+        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and partido[llaves[2]] == 1:
+            numHits += 1
+        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized < pointsTeam_2_Normalized and partido[llaves[2]] == 2:
+            numHits += 1
+        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenError and partido[llaves[2]] == 'x':
+            numHits += 1
+    porcentajeAcierto = 100*numHits/len(resultadosTotal)
+    return porcentajeAcierto
+
+itermax = 10
+valorInicialAcierto = 0
+for numIter in range(itermax):
+    if numIter == 0:
+        continue
+    porcentajeAcierto = maxProbability(soupOfTeams, numIter, resultadosJornadaDeReferencia, listOfPrimera)
+    print(porcentajeAcierto)
+    if porcentajeAcierto > valorInicialAcierto:
+        valorInicialAcierto = porcentajeAcierto
+        valorIterMaxAcierto = numIter
+        print(valorInicialAcierto, valorIterMaxAcierto)
+
+print(valorInicialAcierto, valorIterMaxAcierto)
 
 #obtener modulo de partidos de X jornada:
 p = 0
