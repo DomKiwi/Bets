@@ -33,20 +33,31 @@ class Equipo:
     equiposQueHaGanadoNombre = []
     equiposQueHaPerdidoNombre = []
 
-    def __init__(self, name, ganados=[], perdidos=[], empatados=[],
+    def __init__(self, name, ganados=None, perdidos=None, empatados=None,
                  golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
                  maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
                  mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
         self.name = name
+        if ganados == None:
+            ganados = []
+        if perdidos == None:
+            perdidos = []
+        if empatados == None:
+            empatados = []
         self.setvalues(ganados, perdidos, empatados,
                        golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
                        maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
                        mediaGolPorPartidoEnContra)
-
-    def setvalues(self,ganados=[], perdidos=[], empatados=[],
+    def setvalues(self,ganados= None, perdidos=None, empatados=None,
                   golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
                   maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
                   mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
+        if ganados == None:
+            ganados = []
+        if perdidos == None:
+            perdidos = []
+        if empatados == None:
+            empatados = []
         self.equiposQueHaGanado = ganados
         self.equiposQueHaPerdido = perdidos
         self.equiposQueHaEmpatado = empatados
@@ -129,6 +140,8 @@ class Equipo:
         ]
         return recopilacionequipo, recopilacionImportanteEquipo
 
+###################################################################################################################################################################
+
 def getEquipo(teamName, listaDeEquipos):
     for b in listaDeEquipos:
         if b.name == teamName:
@@ -139,6 +152,19 @@ def getTeamsObjects(route):
     listOfTeams = []
     tableData = route.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
     eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
+    for row in eachRowMatch:
+        teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+        lenOfTeams = len(teams)
+        for i in range(lenOfTeams):
+            teamClass = Equipo(teams[i].contents[0])
+            listOfTeams.append(teamClass)
+    return listOfTeams
+
+###################################################################################################################################################################
+
+def getResults(route, listOfTeams):
+    tableData = route.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
+    eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
     resultadosPartidos = []
     for row in eachRowMatch:
         match = {}
@@ -146,16 +172,35 @@ def getTeamsObjects(route):
         teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
         lenOfTeams = len(teams)
         for i in range(lenOfTeams):
-            match[teams[i].contents[0]] =  results[i].contents[0]
-            teamClass = Equipo(teams[i].contents[0])
-            listOfTeams.append(teamClass)
+            match[teams[i].contents[0]] = results[i].contents[0]
         resultadosPartidos.append(match)
-    return listOfTeams
+    return resultadosPartidos
 ###################################################################################################################################################################
 
-def getPreviousJourneys(route, listOfTeams, itermax):
+def lecturaDeJornada(resultadosEstaJornada, listOfTeams):
+    for match in resultadosEstaJornada:
+        teams = list(match.keys())
+        team_1 = getEquipo(teams[0], listOfTeams)
+        team_2 = getEquipo(teams[1], listOfTeams)
+        if match[teams[0]] > match[teams[1]]:
+            team_1.equiposQueHaGanado.append(team_2)
+            team_2.equiposQueHaPerdido.append(team_1)
+            match['Resultado'] = 1
+        if match[teams[0]] < match[teams[1]]:
+            match['Resultado'] = 2
+            team_2.equiposQueHaGanado.append(team_1)
+            team_1.equiposQueHaPerdido.append(team_2)
+        if match[teams[0]] == match[teams[1]]:
+            match['Resultado'] = 'x'
+            team_1.equiposQueHaEmpatado.append(team_2)
+            team_2.equiposQueHaEmpatado.append(team_1)
+    return resultadosEstaJornada
+
+###################################################################################################################################################################
+
+def getPreviousJourneys(routeRef, itermax):       # INWORK
     #busco la jornada actual
-    journeys = soupOfTeams.find('div', {'class': 'styled__SubHeaderCalendarGrid-sc-1engvts-8 iYpljZ'}).find('div', {'class': 'styled__DropdownContainer-d9k1bl-0 kmhQzc'})
+    journeys = routeRef.find('div', {'class': 'styled__SubHeaderCalendarGrid-sc-1engvts-8 iYpljZ'}).find('div', {'class': 'styled__DropdownContainer-d9k1bl-0 kmhQzc'})
     currentJourney = journeys.find('span').contents[0]
     #busco las jornadas
     eachjourney = journeys.find('ul', {'class': 'styled__ItemsList-d9k1bl-2 hkGQnA'}).find_all('a')
@@ -163,31 +208,101 @@ def getPreviousJourneys(route, listOfTeams, itermax):
     previousJourneys = []
     linkPreviousJourneys = []   #uso esto para buscar cada jornada
     for numday, day in enumerate(eachjourney):
-        linkPreviousJourneys.append(day['href'])
+        linkPreviousJourneys.append('https://www.laliga.com/' + day['href'])
         previousJourneys.append(day)
         if day.contents[0] == currentJourney:
+            del previousJourneys[:numday-itermax]
+            del linkPreviousJourneys[:numday - itermax]
             break
+    previousJourneys.reverse()
+    linkPreviousJourneys.reverse()
+    # enterPage = requests.get('https://www.laliga.com/' + linkPreviousJourneys[0])  # Get URL
+    return previousJourneys, linkPreviousJourneys
 
-    enterPage = requests.get('https://www.laliga.com/' + linkPreviousJourneys[0])  # Get URL
+###################################################################################################################################################################
 
+def getLinkHtml(route):
+    link = requests.get(route)
+    soupOfLink = BeautifulSoup(link.text, 'html.parser')
+    return soupOfLink
+###################################################################################################################################################################
+
+def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for G in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeFuerza += 1
+        if G in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(G)
+        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready)
+
+###################################################################################################################################################################
+
+def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready):
+    if (iter <= 0): return
+    # teamList = []
+    for L in teamToCheck.equiposQueHaPerdido:
+        teamToAddPoints.puntosDeDebilidad += 1
+        if L in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(L)
+        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready)
+
+###################################################################################################################################################################
+
+def addPointsStrengthWeakness(listOfTeams):
+    for team in listOfTeams:
+        iter = 200
+        metodoFuerza(iter, team, team, [])
+        metodoDebilidad(iter, team, team, [])
+
+###################################################################################################################################################################
 
 
 
 
 
 ###################################################################################################################################################################
-route = requests.get('https://www.laliga.com/laliga-santander/resultados')  # Get URL
-soupOfTeams = BeautifulSoup(route.text, 'html.parser')  # Use this format to read it
+soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados')
 
 ###################################################################################################################################################################
 
 #For day BASE (obtener), -i to iter (4,5,6,7...) result efficiency
 # Set inicial
-listOfPrimera = getTeamsObjects(soupOfTeams)
-itermax = 12
-getPreviousJourneys(route, listOfPrimera, itermax)
+listOfPrimera= getTeamsObjects(soupOfTeams)
+resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera)
+
+itermax = 4
+jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
+
+# def maxProbability(linkJP,journeyRefResults, listOfTeams):
+#     resultadosR = lecturaDeJornada(journeyRefResults,listOfTeams)
+#     for partido in resultadosR:
+#         print(partido)
+# maxProbability(linkJP,resultadosJornadaDeReferencia, listOfPrimera)
+
+
+
+for link in linkJP:
+    ruta = getLinkHtml(link)
+    resultados = getResults(ruta, listOfPrimera)
+    resultadosR = lecturaDeJornada(resultados, listOfPrimera)
+
+#llamo al metodo puntos Fuerza y debilidad
+addPointsStrengthWeakness(listOfPrimera)
+
 ###################################################################################################################################################################
 
 #obtener modulo de partidos de X jornada:
-# for i in listOfPrimera:
-#     print(i.name)
+p = 0
+w=0
+for i in listOfPrimera:
+    i.transformData()
+    w = w + len(i.equiposQueHaGanado)
+    p = p + len(i.equiposQueHaPerdidoNombre)
+    # print(i.name, i.equiposQueHaPerdidoNombre)
+    # print(i.name, i.puntosDeFuerza, i.puntosDeDebilidad)
+# print(w,p)
