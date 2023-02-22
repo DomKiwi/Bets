@@ -173,56 +173,72 @@ def getResults(route, listOfTeams,resultsEmpty):
         lenOfTeams = len(teams)
         if resultsEmpty is True:
             for i in range(lenOfTeams):
-                match[teams[i].contents[0]] = 0
+                match[teams[i].contents[0]] = 'No Data'
         else:
             for i in range(lenOfTeams):
                 match[teams[i].contents[0]] = results[i].contents[0]
         resultadosPartidos.append(match)
     return resultadosPartidos
 ###################################################################################################################################################################
-def lecturaDeJornadaInicial(resultadosEstaJornadaInicial, listOfTeams):
-    for match in resultadosEstaJornadaInicial:
-        teams = list(match.keys())
-        team_1 = getEquipo(teams[0], listOfTeams)
-        team_2 = getEquipo(teams[1], listOfTeams)
-        team_1.equiposQueHaGanado = []
-        team_1.equiposQueHaPerdido = []
-        team_2.equiposQueHaPerdido = []
-        team_2.equiposQueHaGanado = []
-        team_1.equiposQueHaEmpatado = []
-        team_2.equiposQueHaEmpatado = []
-        if match[teams[0]] > match[teams[1]]:
-            match['Resultado'] = 1
-        if match[teams[0]] < match[teams[1]]:
-            match['Resultado'] = 2
-        if match[teams[0]] == match[teams[1]]:
-            match['Resultado'] = 'x'
-    return resultadosEstaJornadaInicial
+# def lecturaDeJornadaInicial(resultadosEstaJornadaInicial, listOfTeams, there_is_data):
+#     for match in resultadosEstaJornadaInicial:
+#         teams = list(match.keys())
+#         team_1 = getEquipo(teams[0], listOfTeams)
+#         team_2 = getEquipo(teams[1], listOfTeams)
+#         team_1.equiposQueHaGanado = []
+#         team_1.equiposQueHaPerdido = []
+#         team_2.equiposQueHaPerdido = []
+#         team_2.equiposQueHaGanado = []
+#         team_1.equiposQueHaEmpatado = []
+#         team_2.equiposQueHaEmpatado = []
+#         if there_is_data is True:
+#             if match[teams[0]] > match[teams[1]]:
+#                 match['Resultado'] = 1
+#             if match[teams[0]] < match[teams[1]]:
+#                 match['Resultado'] = 2
+#             if match[teams[0]] == match[teams[1]]:
+#                 match['Resultado'] = 'x'
+#     return resultadosEstaJornadaInicial
 
-def lecturaDeJornada(resultadosEstaJornada, listOfTeams):
+
+def lecturaDeJornada(resultadosEstaJornada, listOfTeams, there_is_data, it_is_Reference):
     for match in resultadosEstaJornada:
         teams = list(match.keys())
         team_1 = getEquipo(teams[0], listOfTeams)
         team_2 = getEquipo(teams[1], listOfTeams)
-        # if resetButton is True:
-        #     team_1.equiposQueHaGanado = []
-        #     team_1.equiposQueHaPerdido = []
-        #     team_2.equiposQueHaPerdido = []
-        #     team_2.equiposQueHaGanado = []
-        #     team_1.equiposQueHaEmpatado = []
-        #     team_2.equiposQueHaEmpatado = []
-        if match[teams[0]] > match[teams[1]]:
-            team_1.equiposQueHaGanado.append(team_2)
-            team_2.equiposQueHaPerdido.append(team_1)
-            match['Resultado'] = 1
-        if match[teams[0]] < match[teams[1]]:
-            match['Resultado'] = 2
-            team_2.equiposQueHaGanado.append(team_1)
-            team_1.equiposQueHaPerdido.append(team_2)
-        if match[teams[0]] == match[teams[1]]:
-            match['Resultado'] = 'x'
-            team_1.equiposQueHaEmpatado.append(team_2)
-            team_2.equiposQueHaEmpatado.append(team_1)
+        if there_is_data is True and it_is_Reference is True:
+            team_1.equiposQueHaGanado = []
+            team_1.equiposQueHaPerdido = []
+            team_2.equiposQueHaPerdido = []
+            team_2.equiposQueHaGanado = []
+            team_1.equiposQueHaEmpatado = []
+            team_2.equiposQueHaEmpatado = []
+            if match[teams[0]] > match[teams[1]]:
+                match['Resultado'] = 1
+            if match[teams[0]] < match[teams[1]]:
+                match['Resultado'] = 2
+            if match[teams[0]] == match[teams[1]]:
+                match['Resultado'] = 'x'
+        elif there_is_data is False and it_is_Reference is True:
+            team_1.equiposQueHaGanado = []
+            team_1.equiposQueHaPerdido = []
+            team_2.equiposQueHaPerdido = []
+            team_2.equiposQueHaGanado = []
+            team_1.equiposQueHaEmpatado = []
+            team_2.equiposQueHaEmpatado = []
+        else:
+            if match[teams[0]] > match[teams[1]]:
+                team_1.equiposQueHaGanado.append(team_2)
+                team_2.equiposQueHaPerdido.append(team_1)
+                match['Resultado'] = 1
+            if match[teams[0]] < match[teams[1]]:
+                match['Resultado'] = 2
+                team_2.equiposQueHaGanado.append(team_1)
+                team_1.equiposQueHaPerdido.append(team_2)
+            if match[teams[0]] == match[teams[1]]:
+                match['Resultado'] = 'x'
+                team_1.equiposQueHaEmpatado.append(team_2)
+                team_2.equiposQueHaEmpatado.append(team_1)
     return resultadosEstaJornada
 
 ###################################################################################################################################################################
@@ -296,70 +312,124 @@ def addPointsStrengthWeakness(listOfTeams, resetPoints):
 
 ###################################################################################################################################################################
 
-def maxProbability(soupOfTeams, itermax, journeyRefResults, listOfTeams):
-    #resultados de la jornada de referencia
-    resultadosTotal = lecturaDeJornadaInicial(journeyRefResults, listOfTeams)
-    # resultados de las anteriores jornadas actualizandolo cada iteracion
-    jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
-    for numLink, link in enumerate(linkJP):
-        ruta = getLinkHtml(link)
-        resultados = getResults(ruta, listOfTeams, False)
-        resultadosR = lecturaDeJornada(resultados, listOfTeams)
+def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_is_data):
+    if there_is_data is True:
+        # resultados de la jornada de referencia
+        resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, True, True)
+        # resultados de las anteriores jornadas actualizandolo cada iteracion
+        jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
+        for numLink, link in enumerate(linkJP):
+            ruta = getLinkHtml(link)
+            resultados = getResults(ruta, listOfTeams, False)
+            resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
 
-    # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
-    addPointsStrengthWeakness(listOfTeams, True)
-    #empiezo la iteracion en la jornada de referencia para comparar los resultados con los datos que tengo yo segun las iteraciones que he hecho en cada caso
-    numHits = 0
-    for partido in resultadosTotal:
-        llaves = list(partido.keys())
-        team_1 = getEquipo(llaves[0], listOfTeams)
-        team_2 = getEquipo(llaves[1], listOfTeams)
-        pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
-        pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
-        minimumP = min([pointsTeam_1, pointsTeam_2])
-        if minimumP == 0:
-            minimumP = 1
-        pointsTeam_1_Normalized = round(pointsTeam_1/minimumP, 2)
-        pointsTeam_2_Normalized = round(pointsTeam_2/minimumP, 2)
-        margenError = 0.05      #variar Dinamicamente
-        print(team_1.name, pointsTeam_1_Normalized, pointsTeam_2_Normalized,team_2.name)
-        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and partido[llaves[2]] == 1:
-            numHits += 1
-        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized < pointsTeam_2_Normalized and partido[llaves[2]] == 2:
-            numHits += 1
-        if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenError and partido[llaves[2]] == 'x':
-            numHits += 1
-    porcentajeAcierto = 100*numHits/len(resultadosTotal)
-    return porcentajeAcierto
+        # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
+        addPointsStrengthWeakness(listOfTeams, True)
+        # empiezo la iteracion en la jornada de referencia para comparar los resultados con los datos que tengo yo segun las iteraciones que he hecho en cada caso
+        numHits = 0
+        for partido in resultadosTotal:
+            llaves = list(partido.keys())
+            team_1 = getEquipo(llaves[0], listOfTeams)
+            team_2 = getEquipo(llaves[1], listOfTeams)
+            pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
+            pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
+            minimumP = min([pointsTeam_1, pointsTeam_2])
+            if minimumP == 0:
+                minimumP = 1
+            pointsTeam_1_Normalized = round(pointsTeam_1 / minimumP, 2)
+            pointsTeam_2_Normalized = round(pointsTeam_2 / minimumP, 2)
+            margenError = 0.05  # variar Dinamicamente
+            print(team_1.name, pointsTeam_1_Normalized, pointsTeam_2_Normalized, team_2.name)
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and \
+                    partido[llaves[2]] == 1:
+                numHits += 1
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized < pointsTeam_2_Normalized and \
+                    partido[llaves[2]] == 2:
+                numHits += 1
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenError and partido[llaves[2]] == 'x':
+                numHits += 1
+        print(numHits)
+        porcentajeAcierto = 100 * numHits / len(resultadosTotal)
+        return porcentajeAcierto
+    else:
+        #resultados de la jornada de referencia
+        resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, False, True)
+        # resultados de las anteriores jornadas actualizandolo cada iteracion
+        jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
+        for numLink, link in enumerate(linkJP):
+            ruta = getLinkHtml(link)
+            resultados = getResults(ruta, listOfTeams, False)
+            resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
+
+        # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
+        addPointsStrengthWeakness(listOfTeams, True)
+        #empiezo la iteracion en la jornada de referencia para comparar los resultados con los datos que tengo yo segun las iteraciones que he hecho en cada caso
+        numHits = 0
+        for partido in resultadosTotal:
+            llaves = list(partido.keys())
+            team_1 = getEquipo(llaves[0], listOfTeams)
+            team_2 = getEquipo(llaves[1], listOfTeams)
+            pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
+            pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
+            minimumP = min([pointsTeam_1, pointsTeam_2])
+            if minimumP == 0:
+                minimumP = 1
+            pointsTeam_1_Normalized = round(pointsTeam_1/minimumP, 2)
+            pointsTeam_2_Normalized = round(pointsTeam_2/minimumP, 2)
+            print(team_1.name, pointsTeam_1_Normalized, pointsTeam_2_Normalized,team_2.name)
+
 ###################################################################################################################################################################
 
+def getDataOfMaxEfficiency(URL, in_this_link_there_are_results, maxValueOfMatchsCalculated):
+    maxValueOfMatchsCalculated = maxValueOfMatchsCalculated + 1
+    soupOfPage = getLinkHtml(URL)
+    listOfTeams = getTeamsObjects(soupOfPage)
+    resultadosJornadaDeReferencia = getResults(soupOfPage, listOfTeams, in_this_link_there_are_results)
+    getPorcentaje(soupOfPage,maxValueOfMatchsCalculated, listOfTeams, resultadosJornadaDeReferencia, in_this_link_there_are_results)
+    return listOfTeams
+
+def getPorcentaje(soupOfPage, itermax, listOfTeams, resultsRef,there_is_data):
+    if there_is_data is True:
+        valorInicialAcierto = 0  # % Porcentaje
+        for numIter in range(1, itermax, 1):
+            porcentajeAcierto = maxProbability(soupOfPage, numIter, listOfTeams, resultsRef, there_is_data)
+            print(porcentajeAcierto, numIter)
+            if porcentajeAcierto > valorInicialAcierto:
+                valorInicialAcierto = porcentajeAcierto
+                valorIterMaxAcierto = numIter
+    else:
+        valorInicialAcierto = 0  # % Porcentaje
+        for numIter in range(1, itermax, 1):
+            porcentajeAcierto = maxProbability(soupOfPage, numIter, listOfTeams, resultsRef, there_is_data)
 
 
 
 ###################################################################################################################################################################
-soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-23')
-# soupOfTeams = getLinkHtml('https://www.laliga.com/laliga-santander/resultados')
-
+    # INPUT DATA #
+URL_Ref = 'https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-22'
+in_this_link_there_are_results_Ref = True
+maxValueOfMatchsCalculated_Ref = 5
 
 ###################################################################################################################################################################
-
+# in_this_link_there_are_results = True
+listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
 #For day BASE (obtener), -i to iter (4,5,6,7...) result efficiency
-# Set inicial
-listOfPrimera= getTeamsObjects(soupOfTeams)
-resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera, True)
+# # Set inicial
+# listOfPrimera= getTeamsObjects(soupOfTeams)
+# resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera, False)
 # resultadosJornadaDeReferencia = getResults(soupOfTeams, listOfPrimera, False) #CUANDO QUIERA COMPROBAR EL METODO
 
 ###################################################################################################################################################################
 # Obtengo probabilidad de cada caso que yo busque
-itermax = 10
-valorInicialAcierto = 0     # % Porcentaje
-for numIter in range(1, itermax, 1):
-    porcentajeAcierto = maxProbability(soupOfTeams, numIter, resultadosJornadaDeReferencia, listOfPrimera)
-    print(porcentajeAcierto,numIter)
-    if porcentajeAcierto > valorInicialAcierto:
-        valorInicialAcierto = porcentajeAcierto
-        valorIterMaxAcierto = numIter
-print(valorInicialAcierto, valorIterMaxAcierto)
+# itermax = 10
+# valorInicialAcierto = 0     # % Porcentaje
+# for numIter in range(1, itermax, 1):
+#     porcentajeAcierto = maxProbability(soupOfTeams, numIter, resultadosJornadaDeReferencia, listOfPrimera)
+#     print(porcentajeAcierto,numIter)
+#     if porcentajeAcierto > valorInicialAcierto:
+#         valorInicialAcierto = porcentajeAcierto
+#         valorIterMaxAcierto = numIter
+# print(valorInicialAcierto, valorIterMaxAcierto)
 
 #obtener modulo de partidos de X jornada:
 p = 0
