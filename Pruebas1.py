@@ -293,6 +293,7 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
         resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, False, True)
     # resultados de las anteriores jornadas actualizandolo cada iteracion
     jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
+    print('/////////////////////////////////////////////////////////////')
     print('Resultados buscados en esta iteración: ' + str(linkJP))
     for numLink, link in enumerate(linkJP):
         ruta = getLinkHtml(link)
