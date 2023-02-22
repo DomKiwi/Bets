@@ -162,7 +162,7 @@ def getTeamsObjects(route):
 
 ###################################################################################################################################################################
 
-def getResults(route, listOfTeams,resultsEmpty):
+def getResults(route, listOfTeams,there_is_data):
     tableData = route.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
     eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
     resultadosPartidos = []
@@ -171,12 +171,12 @@ def getResults(route, listOfTeams,resultsEmpty):
         results = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
         teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
         lenOfTeams = len(teams)
-        if resultsEmpty is True:
-            for i in range(lenOfTeams):
-                match[teams[i].contents[0]] = 'No Data'
-        else:
+        if there_is_data is True:
             for i in range(lenOfTeams):
                 match[teams[i].contents[0]] = results[i].contents[0]
+        else:
+            for i in range(lenOfTeams):
+                match[teams[i].contents[0]] = 'No Data'
         resultadosPartidos.append(match)
     return resultadosPartidos
 ###################################################################################################################################################################
@@ -316,13 +316,13 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
     if there_is_data is True:
         # resultados de la jornada de referencia
         resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, True, True)
+        print(resultadosTotal)
         # resultados de las anteriores jornadas actualizandolo cada iteracion
         jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
         for numLink, link in enumerate(linkJP):
             ruta = getLinkHtml(link)
-            resultados = getResults(ruta, listOfTeams, False)
+            resultados = getResults(ruta, listOfTeams, True)
             resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
-
         # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
         addPointsStrengthWeakness(listOfTeams, True)
         # empiezo la iteracion en la jornada de referencia para comparar los resultados con los datos que tengo yo segun las iteraciones que he hecho en cada caso
@@ -339,7 +339,7 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
             pointsTeam_1_Normalized = round(pointsTeam_1 / minimumP, 2)
             pointsTeam_2_Normalized = round(pointsTeam_2 / minimumP, 2)
             margenError = 0.05  # variar Dinamicamente
-            print(team_1.name, pointsTeam_1_Normalized, pointsTeam_2_Normalized, team_2.name)
+            print(team_1.name, pointsTeam_1_Normalized, pointsTeam_2_Normalized, team_2.name, partido[llaves[2]])
             if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and \
                     partido[llaves[2]] == 1:
                 numHits += 1
@@ -348,7 +348,6 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
                 numHits += 1
             if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenError and partido[llaves[2]] == 'x':
                 numHits += 1
-        print(numHits)
         porcentajeAcierto = 100 * numHits / len(resultadosTotal)
         return porcentajeAcierto
     else:
@@ -358,7 +357,7 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
         jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
         for numLink, link in enumerate(linkJP):
             ruta = getLinkHtml(link)
-            resultados = getResults(ruta, listOfTeams, False)
+            resultados = getResults(ruta, listOfTeams, True)
             resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
 
         # llamo al metodo puntos Fuerza y debilidad con los partidos ganados y perdidos actualizados
@@ -408,7 +407,7 @@ def getPorcentaje(soupOfPage, itermax, listOfTeams, resultsRef,there_is_data):
     # INPUT DATA #
 URL_Ref = 'https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-22'
 in_this_link_there_are_results_Ref = True
-maxValueOfMatchsCalculated_Ref = 5
+maxValueOfMatchsCalculated_Ref = 10
 
 ###################################################################################################################################################################
 # in_this_link_there_are_results = True
