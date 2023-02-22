@@ -178,8 +178,8 @@ def getTeamsObjects(route):
 ###################################################################################################################################################################
 
 def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints):
-    if resetPoints is True:
-        teamToAddPoints.puntosDeDebilidad = 0
+    if resetPoints:
+        teamToAddPoints.puntosDeFuerza = 0
     if iter <= 0:
         return
     for G in teamToCheck.equiposQueHaGanado:
@@ -194,7 +194,7 @@ def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetP
 ###################################################################################################################################################################
 
 def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints):
-    if resetPoints is True:
+    if resetPoints:
         teamToAddPoints.puntosDeDebilidad = 0
     if (iter <= 0): return
     for L in teamToCheck.equiposQueHaPerdido:
@@ -222,6 +222,22 @@ def getDataOfMaxEfficiency(URL, in_this_link_there_are_results, maxValueOfMatchs
     maxValueOfMatchsCalculated = maxValueOfMatchsCalculated + 1
     soupOfPage = getLinkHtml(URL)
     listOfTeams = getTeamsObjects(soupOfPage)
+    #Loop last matches compare method
+    previousJourneys_Repeticiones, linkPreviousJourneysRepeticiones = getPreviousJourneys(soupOfPage, maxValueOfMatchsCalculated)
+    for numLink, linkRep in enumerate(linkPreviousJourneysRepeticiones):
+        print('#####################################################################################################################################################################')
+        print('Entramos en la jornada: ' + str(previousJourneys_Repeticiones[numLink]))
+        soup_rep = getLinkHtml(linkRep)
+        results_rep = getResults(soup_rep, True)
+        getPorcentaje(soup_rep, maxValueOfMatchsCalculated, listOfTeams, results_rep, True)
+        print('/////////////////////////////////////////////////////////////////////////////////////////////////')
+        print('CAMBIO DE JORNADA QUE COMPROBAR')
+    #OFICIAL
+    # maxValueOfMatchsCalculated = maxValueOfMatchsCalculated + 1
+    # soupOfPage = getLinkHtml(URL)
+    # listOfTeams = getTeamsObjects(soupOfPage)
+    print('/////////////////////////////////////////////////////////////////////////////////////////////////')
+    print('Entramos en la jornada seleccionada')
     resultadosJornadaDeReferencia = getResults(soupOfPage, in_this_link_there_are_results)
     getPorcentaje(soupOfPage, maxValueOfMatchsCalculated, listOfTeams, resultadosJornadaDeReferencia,
                   in_this_link_there_are_results)
@@ -277,7 +293,6 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
         resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, False, True)
     # resultados de las anteriores jornadas actualizandolo cada iteracion
     jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
-    ######################################  AÑADIR LOOP PARA CALCULAR VARIAS JORNADAS ATRAS LOS RESULTADOS TAMBIEN
     print('Resultados buscados en esta iteración: ' + str(linkJP))
     for numLink, link in enumerate(linkJP):
         ruta = getLinkHtml(link)
@@ -361,14 +376,15 @@ def getPreviousJourneys(routeRef, itermax):  # INWORK
 ###################################################################################################################################################################
 def getProbabilityOfEachMatch(resultadosTotalDeReferencia, listOfTeams, there_is_data):
     # max_error_margen = 0.2  # variarlo si quiero
-    max_error_margen = np.arange(0, 0.3, 0.01)
+    max_error_margen = np.arange(0, 0.5, 0.01)
     porcentajeYMargenError = {}
     for iError in max_error_margen:
         porcentajeDeAcierto, margenDeError = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, iError, False)
         porcentajeYMargenError[margenDeError] = porcentajeDeAcierto
     maxValuePorcentajeYMargenError = max(porcentajeYMargenError, key=porcentajeYMargenError.get)
     porcentajeDeAciertoMaximo, margenDeErrorMaximo = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, maxValuePorcentajeYMargenError, True)
-    print('Para el numero de jornadas previas usadas obtengo un valor maximo de porcentaje de aciertos: ' + str(porcentajeDeAciertoMaximo) + ' con un margen de error para empates de: ' + str(margenDeErrorMaximo))
+    if there_is_data:
+        print('Para el numero de jornadas previas usadas obtengo un valor maximo de porcentaje de aciertos: ' + str(porcentajeDeAciertoMaximo) + ' con un margen de error para empates de: ' + str(margenDeErrorMaximo))
     return porcentajeDeAciertoMaximo
 def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, margenDeError,printData):
     numHits = 0
@@ -405,9 +421,9 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
 
 ###################################################################################################################################################################
 # INPUT DATA #
-URL_Ref = 'https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-22'
-in_this_link_there_are_results_Ref = True
-maxValueOfMatchsCalculated_Ref = 10
+URL_Ref = 'https://www.laliga.com/laliga-santander/resultados'
+in_this_link_there_are_results_Ref = False
+maxValueOfMatchsCalculated_Ref = 8
 
 ###################################################################################################################################################################
 listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
