@@ -177,42 +177,58 @@ def getTeamsObjects(route):
 
 ###################################################################################################################################################################
 
-def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints):
+def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos, factorDegenerativo):
     if resetPoints:
         teamToAddPoints.puntosDeFuerza = 0
     if iter <= 0:
         return
     for G in teamToCheck.equiposQueHaGanado:
-        teamToAddPoints.puntosDeFuerza += 1
+        teamToAddPoints.puntosDeFuerza += 1*valorDePuntos
         if G in teamsCountedAlready:
             continue
         iter -= 1
         teamsCountedAlready.append(G)
-        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready, False)
+        # valorDePuntosNuevo = round(max(valorDePuntos - 0.1, 0), 2)
+        valorDePuntosNuevo = valorDePuntos*factorDegenerativo
+        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo,factorDegenerativo)
 
 
 ###################################################################################################################################################################
 
-def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints):
+# def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos):
+#     if resetPoints:
+#         teamToAddPoints.puntosDeDebilidad = 0
+#     if (iter <= 0): return
+#     for L in teamToCheck.equiposQueHaPerdido:
+#         teamToAddPoints.puntosDeDebilidad += 1*valorDePuntos
+#         if L in teamsCountedAlready:
+#             continue
+#         iter -= 1
+#         teamsCountedAlready.append(L)
+#         # valorDePuntosNuevo = round(max(valorDePuntos - 0.1, 0), 2)
+#         valorDePuntosNuevo = 0.8 * valorDePuntos
+#         metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo)
+def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos, factorDegenerativo):
     if resetPoints:
         teamToAddPoints.puntosDeDebilidad = 0
     if (iter <= 0): return
     for L in teamToCheck.equiposQueHaPerdido:
-        teamToAddPoints.puntosDeDebilidad += 1
+        teamToAddPoints.puntosDeDebilidad += 1*valorDePuntos
         if L in teamsCountedAlready:
             continue
         iter -= 1
         teamsCountedAlready.append(L)
-        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready, False)
-
+        # valorDePuntosNuevo = round(max(valorDePuntos - 0.1, 0), 2)
+        valorDePuntosNuevo = factorDegenerativo * valorDePuntos
+        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo, factorDegenerativo)
 
 ###################################################################################################################################################################
 
-def addPointsStrengthWeakness(listOfTeams, resetPoints):
+def addPointsStrengthWeakness(listOfTeams, resetPoints, valorDePuntos, factorDegenerativo):
     for team in listOfTeams:
         iter = 200
-        metodoFuerza(iter, team, team, [], resetPoints)
-        metodoDebilidad(iter, team, team, [], resetPoints)
+        metodoFuerza(iter, team, team, [], resetPoints, valorDePuntos, factorDegenerativo)
+        metodoDebilidad(iter, team, team, [], resetPoints, valorDePuntos, factorDegenerativo)
 
 
 ###################################################################################################################################################################
@@ -279,7 +295,9 @@ def getPorcentaje(soupOfPage, itermax, listOfTeams, resultsRef, there_is_data):
                 valorIterMaxAcierto = numIter
     else:
         for numIter in range(1, itermax, 1):
+            print('/////////////////////////////////////////////////////////////')
             porcentajeAcierto = maxProbability(soupOfPage, numIter, listOfTeams, resultsRef, there_is_data)
+            print('El numero de partidos previos escogidos en esta iteracion es: ' + str(numIter))
     print('/////////////////////////////////////////////////////////////')
 
 ###################################################################################################################################################################
@@ -299,8 +317,18 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
         ruta = getLinkHtml(link)
         resultados = getResults(ruta, True)
         resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
-    addPointsStrengthWeakness(listOfTeams, True)
-    porcentajeAcierto = getProbabilityOfEachMatch(resultadosTotal, listOfTeams, there_is_data)
+
+    factoresDegenerativos = np.arange(-0.5, 0.95, 0.05)
+    factoresDegenerativosPosibles = {}
+    valorDePuntos_Deg = 1
+    for numDeg in factoresDegenerativos:
+        addPointsStrengthWeakness(listOfTeams, True, valorDePuntos_Deg, numDeg)
+        porcentajeAciertoFactorDeg = getProbabilityOfEachMatch(resultadosTotal, listOfTeams, there_is_data, False)
+        factoresDegenerativosPosibles[numDeg] = porcentajeAciertoFactorDeg
+    factorDegenerativosOptimo = max(factoresDegenerativosPosibles, key=factoresDegenerativosPosibles.get)
+    print(factorDegenerativosOptimo)
+    addPointsStrengthWeakness(listOfTeams, True, valorDePuntos_Deg, factorDegenerativosOptimo)
+    porcentajeAcierto = getProbabilityOfEachMatch(resultadosTotal, listOfTeams, there_is_data, True)
     return porcentajeAcierto
 
 
@@ -375,19 +403,19 @@ def getPreviousJourneys(routeRef, itermax):  # INWORK
 
 
 ###################################################################################################################################################################
-def getProbabilityOfEachMatch(resultadosTotalDeReferencia, listOfTeams, there_is_data):
+def getProbabilityOfEachMatch(resultadosTotalDeReferencia, listOfTeams, there_is_data, printDataForMaxProb):
     # max_error_margen = 0.2  # variarlo si quiero
     max_error_margen = np.arange(0, 0.5, 0.01)
     porcentajeYMargenError = {}
     for iError in max_error_margen:
-        porcentajeDeAcierto, margenDeError = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, iError, False)
+        porcentajeDeAcierto, margenDeError = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, iError, False, False)
         porcentajeYMargenError[margenDeError] = porcentajeDeAcierto
     maxValuePorcentajeYMargenError = max(porcentajeYMargenError, key=porcentajeYMargenError.get)
-    porcentajeDeAciertoMaximo, margenDeErrorMaximo = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, maxValuePorcentajeYMargenError, True)
-    if there_is_data:
+    porcentajeDeAciertoMaximo, margenDeErrorMaximo = calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, maxValuePorcentajeYMargenError, True, printDataForMaxProb)
+    if there_is_data and printDataForMaxProb:
         print('Para el numero de jornadas previas usadas obtengo un valor maximo de porcentaje de aciertos: ' + str(porcentajeDeAciertoMaximo) + ' con un margen de error para empates de: ' + str(margenDeErrorMaximo))
     return porcentajeDeAciertoMaximo
-def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, margenDeError,printData):
+def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, margenDeError,printData, printDataForMaxProb):
     numHits = 0
     for partido in resultadosTotalDeReferencia:
         llaves = list(partido.keys())
@@ -398,10 +426,10 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
         minimumP = min([pointsTeam_1, pointsTeam_2])
         if minimumP == 0:
             minimumP = 1
-        pointsTeam_1_Normalized = round(pointsTeam_1 / minimumP, 5)
-        pointsTeam_2_Normalized = round(pointsTeam_2 / minimumP, 5)
+        pointsTeam_1_Normalized = abs(round(pointsTeam_1 / minimumP, 5))
+        pointsTeam_2_Normalized = abs(round(pointsTeam_2 / minimumP, 5))
         if there_is_data:
-            if printData:
+            if printData and printDataForMaxProb:
                 print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name,
                   partido[llaves[2]])
             if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenDeError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and \
@@ -413,7 +441,7 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
             if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenDeError and partido[llaves[2]] == 'x':
                 numHits += 1
         else:
-            if printData:
+            if printData and printDataForMaxProb:
                 print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name)
 
     porcentajeAcierto = 100 * numHits / len(resultadosTotalDeReferencia)
@@ -424,9 +452,13 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
 # INPUT DATA #
 URL_Ref = 'https://www.laliga.com/laliga-santander/resultados'
 in_this_link_there_are_results_Ref = False
-maxValueOfMatchsCalculated_Ref = 8
+maxValueOfMatchsCalculated_Ref = 10
 
 ###################################################################################################################################################################
 listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
 
+for i in listOfPrimera:
+    print(i.name, i.puntosDeFuerza, i.puntosDeDebilidad)
+
 # END
+# Mejorar el programa añadiendo que me diga el mejor factorDegenerativo cogiendo los ultimos 10 partidos
