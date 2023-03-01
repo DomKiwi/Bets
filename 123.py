@@ -1,4 +1,6 @@
 import itertools
+import statistics
+
 from bs4 import BeautifulSoup
 import pandas as pd
 import requests
@@ -12,160 +14,342 @@ import zipfile
 import atexit
 import xlsxwriter
 from vincent.colors import brews
+from statistics import mean
 
+
+def createListIfNone(listaDada):
+    if listaDada is None: listaDada = []
 
 class Equipo:
     # Agrego valores iniciales de los datos que me interesan de la pagina web como otros que quiera crear yo nuevos
+    ## DATOS ENTRANTES
     name = ""
-    columnaPosiciones = 0
-    puntos = 0
-    partidos = 0
-    wins = 0
-    loses = 0
-    draws = 0
-    afavor = 0
-    encontra = 0
     equiposQueHaGanado = []
     equiposQueHaPerdido = []
     equiposQueHaEmpatado = []
-    puntosGanados = 0
-    puntosPerdidos = 0
-    puntosEmpatados = 0
-    golesEncontraUltimasJornadas = 0
-    golesAfavorUltimasJornadas = 0
-    maximosGoles = 0
-    minimosGoles = 0
-    maximosGolesEnContra = 0
-    minimosGolesEnContra = 0
-    mediaGolPorPartidoMarcados = 0
-    mediaGolPorPartidoEnContra = 0
-    # puntosDeFuerza = len(equiposQueHaGanado)
+    golesAFavor = []
+    golesEnContra = []
+
     puntosDeDebilidad = 0
     puntosDeFuerza = 0
+
+    ## DATOS CALCULADOS INTERNAMENTE
     equiposQueHaEmpatadoNombre = []
     equiposQueHaGanadoNombre = []
     equiposQueHaPerdidoNombre = []
 
-    def __init__(self, name, columnasPosiciones=0, puntos=0, partidos=0, wins=0,
-                 draws=0, loses=0, afavor=0, encontra=0, ganados=[], perdidos=[], empatados=[],
-                 golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
-                 maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
-                 mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
+    golesAFavorAverage = 0
+    golesAFavorMax = 0
+    golesAFavorMin = 0
+    golesAFavorDesV = 0
+
+    golesEnContraAverage = 0
+    golesEnContraMax = 0
+    golesEnContraMin = 0
+    golesEnContraDesV = 0
+
+    def __init__(self, name, ganados=None, perdidos=None, empatados=None,
+                 golesAfavor=None, golesEnContra=None):
         self.name = name
-        self.setvalues(columnasPosiciones, puntos, partidos, wins,
-                       draws, loses, afavor, encontra, ganados, perdidos, empatados,
-                       golesAfavorUltimasJornadas, golesEncontraUltimasJornadas, maximosGoles, minimosGoles,
-                       maximosGolesEnContra, minimosGolesEnContra, mediaGolPorPartidoMarcados,
-                       mediaGolPorPartidoEnContra)
+        createListIfNone(ganados)
+        createListIfNone(perdidos)
+        createListIfNone(empatados)
+        createListIfNone(golesAfavor)
+        createListIfNone(golesEnContra)
 
-    def setvalues(self, columnasPosiciones=0, puntos=0, partidos=0, wins=0,
-                  draws=0, loses=0, afavor=0, encontra=0, ganados=[], perdidos=[], empatados=[],
-                  golesAfavorUltimasJornadas=0, golesEncontraUltimasJornadas=0, maximosGoles=0, minimosGoles=0,
-                  maximosGolesEnContra=0, minimosGolesEnContra=0, mediaGolPorPartidoMarcados=0,
-                  mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
-        self.columnaPosiciones = columnasPosiciones
-        self.puntos = puntos
-        self.partidos = partidos
-        self.wins = wins
-        self.loses = loses
-        self.draws = draws
-        self.afavor = afavor
-        self.encontra = encontra
-        self.equiposQueHaGanado = ganados
-        self.equiposQueHaPerdido = perdidos
-        self.equiposQueHaEmpatado = empatados
-        self.golesAfavorUltimasJornadas = golesAfavorUltimasJornadas
-        self.golesEncontraUltimasJornadas = golesEncontraUltimasJornadas
-        self.maximosGoles = maximosGoles
-        self.minimosGoles = minimosGoles
-        self.maximosGolesEnContra = maximosGolesEnContra
-        self.minimosGolesEnContra = minimosGolesEnContra
-        self.mediaGolPorPartidoMarcados = mediaGolPorPartidoMarcados
-        self.mediaGolPorPartidoEnContra = mediaGolPorPartidoEnContra
+    def calculateFormulas(self):
+        self.golesAFavorAverage = mean(self.golesAFavor)
+        self.golesAFavorMax = max(self.golesAFavor)
+        self.golesAFavorMin = min(self.golesAFavor)
+        self.golesAFavorDesV = statistics.pstdev(self.golesAFavor)
 
-    def transformData(self):
+        self.golesEnContraAverage = mean(self.golesEnContra)
+        self.golesEnContraMax = max(self.golesEnContra)
+        self.golesEnContraMin = min(self.golesEnContra)
+        self.golesEnContraDesV = statistics.pstdev(self.golesEnContra)
+
         self.equiposQueHaGanadoNombre = [tm.name for tm in self.equiposQueHaGanado]
         self.equiposQueHaPerdidoNombre = [tm.name for tm in self.equiposQueHaPerdido]
         self.equiposQueHaEmpatadoNombre = [tm.name for tm in self.equiposQueHaEmpatado]
 
-    def getDataframe(self):  # de los valores que estoy trabajando, los meto en un dataframe para manejarlos mejor
-        self.transformData()
-        recopilacionequipo = [
-            self.columnaPosiciones,
-            self.name,
-            self.puntos,
-            self.partidos,
-            self.wins,
-            self.draws,
-            self.loses,
-            self.afavor,
-            self.encontra,
-            self.equiposQueHaGanadoNombre,
-            self.equiposQueHaPerdidoNombre,
-            self.equiposQueHaEmpatadoNombre,
-            self.golesAfavorUltimasJornadas,
-            self.golesEncontraUltimasJornadas,
-            self.maximosGoles,
-            self.minimosGoles,
-            self.maximosGolesEnContra,
-            self.minimosGolesEnContra,
-            self.mediaGolPorPartidoMarcados,
-            self.mediaGolPorPartidoEnContra,
-            self.puntosDeFuerza,
-            self.puntosDeDebilidad
-        ]
-        recopilacionImportanteEquipo = [
-            self.name,
-            self.golesAfavorUltimasJornadas,
-            self.golesEncontraUltimasJornadas,
-            self.maximosGoles,
-            self.minimosGoles,
-            self.maximosGolesEnContra,
-            self.minimosGolesEnContra,
-            self.mediaGolPorPartidoMarcados,
-            self.mediaGolPorPartidoEnContra,
-            self.puntosDeFuerza,
-            self.puntosDeDebilidad
-        ]
-        recopilacionequipo = pd.DataFrame(recopilacionequipo).transpose()
-        recopilacionImportanteEquipo = pd.DataFrame(recopilacionImportanteEquipo).transpose()
 
-        recopilacionequipo.columns = [
-            "Position",
-            "Team",
-            "Points",
-            "Matches",
-            "Wins",
-            "Draws",
-            "Loses",
-            "G_Scored",
-            "G_Against",
-            "Won vs",
-            "Lost vs",
-            "Draw vs",
-            "G_Scored last_4",
-            "G_Against last_4",
-            "Max G_Scored last_4",
-            "Min G_Scored last_4",
-            "Max G_Against last_4",
-            "Min G_Against last_4",
-            "Averg G_Scored last_4",
-            "Averg G_Against last_4",
-            "Strength Points",
-            "Weakness Points"
-        ]
-        recopilacionImportanteEquipo.columns = [
-            "Team",
-            "G_Scored last_4",
-            "G_Against last_4",
-            "Max G_Scored last_4",
-            "Min G_Scored last_4",
-            "Max G_Against last_4",
-            "Min G_Against last_4",
-            "Averg G_Scored last_4",
-            "Averg G_Against last_4",
-            "Strength Points",
-            "Weakness Points"
-        ]
-        return recopilacionequipo, recopilacionImportanteEquipo
+###################################################################################################################################################################
+def getEquipo(teamName, listaDeEquipos):
+    for b in listaDeEquipos:
+        if b.name == teamName:
+            return b
 
+###################################################################################################################################################################
+def getLinkHtml(route):
+    soupOfLinks = []
+    for links in route:
+        link_py = requests.get(links)
+        soupOfLinks.append(BeautifulSoup(link_py.text, 'html.parser'))
+    return soupOfLinks
+
+###################################################################################################################################################################
+def getTeamsObjects(route):
+    listOfTeams = []
+    for URLWebsite in route:
+        tableData = URLWebsite.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
+        eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
+        for row in eachRowMatch:
+            teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+            lenOfTeams = len(teams)
+            for i in range(lenOfTeams):
+                teamClass = Equipo(teams[i].contents[0])
+                listOfTeams.append(teamClass)
+    return listOfTeams
+
+###################################################################################################################################################################
+def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos, factorDegenerativo):
+    if resetPoints:
+        teamToAddPoints.puntosDeFuerza = 0
+    if iter <= 0:
+        return
+    for G in teamToCheck.equiposQueHaGanado:
+        teamToAddPoints.puntosDeFuerza += 1*valorDePuntos
+        if G in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(G)
+        valorDePuntosNuevo = valorDePuntos*factorDegenerativo   # Poner valorDePuntos en la funcion de vuelta y variar las dos variables
+        metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo,factorDegenerativo)
+
+###################################################################################################################################################################
+def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos, factorDegenerativo):
+    if resetPoints:
+        teamToAddPoints.puntosDeDebilidad = 0
+    if (iter <= 0): return
+    for L in teamToCheck.equiposQueHaPerdido:
+        teamToAddPoints.puntosDeDebilidad += 1*valorDePuntos
+        if L in teamsCountedAlready:
+            continue
+        iter -= 1
+        teamsCountedAlready.append(L)
+        valorDePuntosNuevo = factorDegenerativo * valorDePuntos
+        metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo, factorDegenerativo)
+
+###################################################################################################################################################################
+def addPointsStrengthWeakness(listOfTeams, resetPoints, valorDePuntos, factorDegenerativo):
+    for team in listOfTeams:
+        iter = 200
+        metodoFuerza(iter, team, team, [], resetPoints, valorDePuntos, factorDegenerativo)
+        metodoDebilidad(iter, team, team, [], resetPoints, valorDePuntos, factorDegenerativo)
+
+###################################################################################################################################################################
+def getPreviousJourneys(routeRef, itermax):  # INWORK
+    linkPreviousJourneys_eachURL = {}
+    for routeRef_individual in routeRef:
+        # busco la jornada actual
+        journeys = routeRef_individual.find('div', {'class': 'styled__SubHeaderCalendarGrid-sc-1engvts-8 iYpljZ'}).find('div', {
+            'class': 'styled__DropdownContainer-d9k1bl-0 kmhQzc'})
+        currentJourney = journeys.find('span').contents[0]
+        # busco las jornadas
+        eachjourney = journeys.find('ul', {'class': 'styled__ItemsList-d9k1bl-2 hkGQnA'}).find_all('a')
+        lenJourneys = len(eachjourney)
+        previousJourneys = []
+        linkPreviousJourneys = []  # uso esto para buscar cada jornada
+        for numday, day in enumerate(eachjourney):
+            linkPreviousJourneys.append('https://www.laliga.com/' + day['href'])
+            previousJourneys.append(day.contents[0])
+            if day.contents[0] == currentJourney:
+                del previousJourneys[:numday - itermax]
+                previousJourneys = previousJourneys[:-1]
+                del linkPreviousJourneys[:numday - itermax]
+                linkPreviousJourneys = linkPreviousJourneys[:-1]
+                break
+        previousJourneys.reverse()
+        linkPreviousJourneys.reverse()
+        linkPreviousJourneys_eachURL[routeRef_individual] = linkPreviousJourneys
+    return linkPreviousJourneys_eachURL
+
+###################################################################################################################################################################
+def getResults(routes, there_are_results):
+    for eachLeague in routes:
+        tableData = eachLeague.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
+        eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
+        resultadosPartidos = []
+        for row in eachRowMatch:
+            match = {}
+            results = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
+            teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+            lenOfTeams = len(teams)
+            if there_are_results:
+                for i in range(lenOfTeams):
+                    match[teams[i].contents[0]] = results[i].contents[0]
+            else:
+                for i in range(lenOfTeams):
+                    match[teams[i].contents[0]] = 'No Data'
+            resultadosPartidos.append(match)
+
+    return resultadosPartidos
+
+###################################################################################################################################################################
+def lecturaDeJornada(resultadosEstaJornada, listOfTeams, there_is_data, it_is_Reference):
+    for match in resultadosEstaJornada:
+        teams = list(match.keys())
+        team_1 = getEquipo(teams[0], listOfTeams)
+        team_2 = getEquipo(teams[1], listOfTeams)
+        if there_is_data and it_is_Reference:
+            team_1.equiposQueHaGanado = []
+            team_1.equiposQueHaPerdido = []
+            team_2.equiposQueHaPerdido = []
+            team_2.equiposQueHaGanado = []
+            team_1.equiposQueHaEmpatado = []
+            team_2.equiposQueHaEmpatado = []
+            if match[teams[0]] > match[teams[1]]:
+                match['Resultado'] = 1
+            if match[teams[0]] < match[teams[1]]:
+                match['Resultado'] = 2
+            if match[teams[0]] == match[teams[1]]:
+                match['Resultado'] = 'x'
+        elif there_is_data is False and it_is_Reference:
+            team_1.equiposQueHaGanado = []
+            team_1.equiposQueHaPerdido = []
+            team_2.equiposQueHaPerdido = []
+            team_2.equiposQueHaGanado = []
+            team_1.equiposQueHaEmpatado = []
+            team_2.equiposQueHaEmpatado = []
+        else:
+            if match[teams[0]] > match[teams[1]]:
+                team_1.equiposQueHaGanado.append(team_2)
+                team_2.equiposQueHaPerdido.append(team_1)
+                match['Resultado'] = 1
+            if match[teams[0]] < match[teams[1]]:
+                match['Resultado'] = 2
+                team_2.equiposQueHaGanado.append(team_1)
+                team_1.equiposQueHaPerdido.append(team_2)
+            if match[teams[0]] == match[teams[1]]:
+                match['Resultado'] = 'x'
+                team_1.equiposQueHaEmpatado.append(team_2)
+                team_2.equiposQueHaEmpatado.append(team_1)
+    return resultadosEstaJornada
+
+###################################################################################################################################################################
+def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, margenDeError,printData, printDataForMaxProb):
+    numHits = 0
+    for partido in resultadosTotalDeReferencia:
+        llaves = list(partido.keys())
+        team_1 = getEquipo(llaves[0], listOfTeams)
+        team_2 = getEquipo(llaves[1], listOfTeams)
+        pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
+        pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
+        minimumP = min([pointsTeam_1, pointsTeam_2])
+        if minimumP == 0:
+            minimumP = 1
+        pointsTeam_1_Normalized = abs(round(pointsTeam_1 / minimumP, 5))
+        pointsTeam_2_Normalized = abs(round(pointsTeam_2 / minimumP, 5))
+        if there_is_data:
+            if printData and printDataForMaxProb:
+                print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name,
+                  partido[llaves[2]])
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenDeError and pointsTeam_1_Normalized > pointsTeam_2_Normalized and \
+                    partido[llaves[2]] == 1:
+                numHits += 1
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) > margenDeError and pointsTeam_1_Normalized < pointsTeam_2_Normalized and \
+                    partido[llaves[2]] == 2:
+                numHits += 1
+            if abs(pointsTeam_1_Normalized - pointsTeam_2_Normalized) < margenDeError and partido[llaves[2]] == 'x':
+                numHits += 1
+        else:
+            if printData and printDataForMaxProb:
+                print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name)
+
+    porcentajeAcierto = 100 * numHits / len(resultadosTotalDeReferencia)
+    return porcentajeAcierto, margenDeError
+
+
+
+
+
+
+
+
+
+
+
+
+###################################################################################################################################################################
+# INPUT DATA #
+URL_Ref_1 = 'https://www.laliga.com/laliga-santander/resultados'
+URL_Ref_2 = 'https://www.laliga.com/laliga-smartbank/resultados'
+URL_Ref_3 = 'https://www.laliga.com/futbol-femenino/resultados'
+URL = [URL_Ref_1, URL_Ref_2, URL_Ref_3]
+
+in_this_link_there_are_results_Ref = False
+maxValueOfMatchsCalculated_Ref = 5
+
+
+###################################################################################################################################################################
+maxValueOfMatchsCalculated_Ref = maxValueOfMatchsCalculated_Ref + 1
+URL_in_HTML = getLinkHtml(URL)
+listOfTotalTeams = getTeamsObjects(URL_in_HTML)
+
+
+print('/////////////////////////////////////////////////////////////////////////////////////////////////')
+print('Entramos en la jornada SELECCIONADA')
+linksOfPreviousJourneys = getPreviousJourneys(URL_in_HTML, maxValueOfMatchsCalculated_Ref)
+print('Usaremos los siguientes links para su calculo de probabilidad: ' + str(linksOfPreviousJourneys))
+
+def iterateThroughJourneys(listOfTeams,linksPreviousJourneys,maxValueMatchesCalculated, there_is_data):
+    datosRecopiladosJornada = []
+    for num in range(1, maxValueMatchesCalculated, 1):
+        for numLink, linkRep in enumerate(linksPreviousJourneys):
+            soup_repetible = getLinkHtml(linksPreviousJourneys[linkRep][:num])
+            #actualizo resultados de esta jornada
+            results_rep = getResults(soup_repetible, True)
+            datosRecopiladosJornada[linkRep] = lecturaDeJornada(results_rep, listOfTeams, True, False)
+        #for???
+        if there_is_data:
+            #Mejor combinacion para mayor % de acierto
+            factoresDegenerativos = np.arange(-0.4, 0.95, 0.1)
+            valoresDePuntos = np.arange(0.1, 0.95, 0.05)
+            for valorDePuntos_iter in valoresDePuntos:
+                for factorDegenerativo_iter in factoresDegenerativos:
+                    addPointsStrengthWeakness(listOfTeams, True, valorDePuntos_iter, factorDegenerativo_iter)
+                    # Margen de Error para Empate
+                    max_error_margen = np.arange(0, 0.5, 0.01)
+                    porcentajeYMargenError = {}
+                    for iError in max_error_margen:
+                        porcentajeDeAcierto, margenDeError = calculatePorcentaje(datosRecopiladosJornada)
+                        porcentajeYMargenError[margenDeError] = porcentajeDeAcierto
+        else:
+
+
+        #llamo a la funcion para obtener el porcentaje de aciertos.
+
+
+cuantasJornadasCojemos = iterateThroughJourneys()
+resultadosJornadaDeReferencia = getResults(linksOfPreviousJourneys, in_this_link_there_are_results_Ref)
+
+
+
+
+checkLastResultsWithTheMethod = checkIfMethodWorksInLastestJourneys(URL_in_HTML, linksOfPreviousJourneys,maxValueOfMatchsCalculated_Ref)
+
+###################################################################################################################################################################
+# listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
+for i in listOfTotalTeams:
+    print(i.name)
+
+
+
+
+
+
+
+def checkIfMethodWorksInLastestJourneys(URL_in_HTML, linksPreviousJourneys, maxValueOfMatchsCalculated):
+    for num in range(1, maxValueOfMatchsCalculated, 1):
+        for numLeague, eachLeague in enumerate(linksPreviousJourneys):
+            print(linksPreviousJourneys[eachLeague][:num])
+            soup_repetible = getLinkHtml(linksPreviousJourneys[eachLeague][:num])
+            results_rep = getResults(soup_repetible)
+
+
+            # print('#####################################################################################################################################################################')
+            # print('Entramos en la jornada: ' + str(previousJourneys_Repeticiones[numLink]))
+            # getPorcentaje(soup_rep, maxValueOfMatchsCalculated, listOfTeams, results_rep, True)
+            # print('/////////////////////////////////////////////////////////////////////////////////////////////////')
+            # print('CAMBIO DE JORNADA QUE COMPROBAR')
+        print(len(eachLeague))

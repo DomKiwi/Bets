@@ -12,6 +12,13 @@ import zipfile
 import atexit
 import xlsxwriter
 from vincent.colors import brews
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import lxml
+from selenium.webdriver.common.by import By
+
+
+
 
 
 class Equipo:
@@ -40,7 +47,7 @@ class Equipo:
                  mediaGolPorPartidoEnContra=0):  # Llamo a los datos que me interan ya inicializados y les añado el valor que he dado en la entrada de la clase
         self.name = name
         if ganados == None:
-            ganados = []
+            self.ganados = []
         if perdidos == None:
             perdidos = []
         if empatados == None:
@@ -159,6 +166,17 @@ def getLinkHtml(route):
     soupOfLink = BeautifulSoup(link.text, 'html.parser')
     return soupOfLink
 
+def getLinkHtml_Pirate(route):
+
+    driver = webdriver.Chrome()
+    driver.get(route)
+    driver.find_element(By.XPATH, '//*[@id="qc-cmp2-ui"]/div[2]/div/button[2]').click()
+    driver.find_element(By.XPATH, '/html/body/div[5]/div[5]/div/ul/li[2]/a').click()
+    time.sleep(3)
+    soupOfLink = BeautifulSoup(driver.page_source, 'lxml')
+    driver.quit()
+    return soupOfLink
+
 
 ###################################################################################################################################################################
 
@@ -195,19 +213,6 @@ def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetP
 
 ###################################################################################################################################################################
 
-# def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos):
-#     if resetPoints:
-#         teamToAddPoints.puntosDeDebilidad = 0
-#     if (iter <= 0): return
-#     for L in teamToCheck.equiposQueHaPerdido:
-#         teamToAddPoints.puntosDeDebilidad += 1*valorDePuntos
-#         if L in teamsCountedAlready:
-#             continue
-#         iter -= 1
-#         teamsCountedAlready.append(L)
-#         # valorDePuntosNuevo = round(max(valorDePuntos - 0.1, 0), 2)
-#         valorDePuntosNuevo = 0.8 * valorDePuntos
-#         metodoDebilidad(iter, L, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo)
 def metodoDebilidad(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetPoints, valorDePuntos, factorDegenerativo):
     if resetPoints:
         teamToAddPoints.puntosDeDebilidad = 0
@@ -252,8 +257,7 @@ def getDataOfMaxEfficiency(URL, in_this_link_there_are_results, maxValueOfMatchs
     # maxValueOfMatchsCalculated = maxValueOfMatchsCalculated + 1
     # soupOfPage = getLinkHtml(URL)
     # listOfTeams = getTeamsObjects(soupOfPage)
-    print('/////////////////////////////////////////////////////////////////////////////////////////////////')
-    print('Entramos en la jornada seleccionada')
+
     resultadosJornadaDeReferencia = getResults(soupOfPage, in_this_link_there_are_results)
     getPorcentaje(soupOfPage, maxValueOfMatchsCalculated, listOfTeams, resultadosJornadaDeReferencia,
                   in_this_link_there_are_results)
@@ -305,10 +309,10 @@ def getPorcentaje(soupOfPage, itermax, listOfTeams, resultsRef, there_is_data):
 def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_is_data):
     if there_is_data:
         # resultados de la jornada de referencia
-        resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, True, True)
+        resultadosTotal = lecturaDeJornada(soupOfTeams, journeyRefResults, listOfTeams, True, True, True)
     else:
         # resultados de la jornada de referencia
-        resultadosTotal = lecturaDeJornada(journeyRefResults, listOfTeams, False, True)
+        resultadosTotal = lecturaDeJornada(soupOfTeams, journeyRefResults, listOfTeams, False, True, False)
     # resultados de las anteriores jornadas actualizandolo cada iteracion
     jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
     print('/////////////////////////////////////////////////////////////')
@@ -316,9 +320,9 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
     for numLink, link in enumerate(linkJP):
         ruta = getLinkHtml(link)
         resultados = getResults(ruta, True)
-        resultadosR = lecturaDeJornada(resultados, listOfTeams, True, False)
+        resultadosR = lecturaDeJornada(soupOfTeams, resultados, listOfTeams, True, False, False)
 
-    factoresDegenerativos = np.arange(-0.5, 0.95, 0.05)
+    factoresDegenerativos = np.arange(-0.3, 0.95, 0.05)
     factoresDegenerativosPosibles = {}
     valorDePuntos_Deg = 1
     for numDeg in factoresDegenerativos:
@@ -334,8 +338,9 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
 
 ###################################################################################################################################################################
 
-def lecturaDeJornada(resultadosEstaJornada, listOfTeams, there_is_data, it_is_Reference):
+def lecturaDeJornada(soupOfTeams, resultadosEstaJornada, listOfTeams, there_is_data, it_is_Reference, hayArbitro):
     for match in resultadosEstaJornada:
+        arbitroSoup = soupOfTeams.find('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 jbKUta'}).contents[0]
         teams = list(match.keys())
         team_1 = getEquipo(teams[0], listOfTeams)
         team_2 = getEquipo(teams[1], listOfTeams)
@@ -352,6 +357,7 @@ def lecturaDeJornada(resultadosEstaJornada, listOfTeams, there_is_data, it_is_Re
                 match['Resultado'] = 2
             if match[teams[0]] == match[teams[1]]:
                 match['Resultado'] = 'x'
+            match['Arbitro'] = arbitroSoup
         elif there_is_data is False and it_is_Reference is True:
             team_1.equiposQueHaGanado = []
             team_1.equiposQueHaPerdido = []
@@ -415,14 +421,37 @@ def getProbabilityOfEachMatch(resultadosTotalDeReferencia, listOfTeams, there_is
     if there_is_data and printDataForMaxProb:
         print('Para el numero de jornadas previas usadas obtengo un valor maximo de porcentaje de aciertos: ' + str(porcentajeDeAciertoMaximo) + ' con un margen de error para empates de: ' + str(margenDeErrorMaximo))
     return porcentajeDeAciertoMaximo
+
+
+arbitroPage_Ref = getLinkHtml_Pirate('https://es.whoscored.com/Regions/206/Tournaments/4/Seasons/9149/Stages/21073/RefereeStatistics/Espa%C3%B1a-LaLiga-2022-2023')
+def obtainArbitro(name):
+    arbitroDict = {}
+    listavacia_1 = []
+    name_low = name.replace(' ', '-').lower()
+    a = arbitroPage_Ref.find('div', {'id': 'referee-stats-alternate'}).find('tbody', {'id': 'referee-tournaments-table-body'}).find_all('tr')
+    for ia in a:
+        ib = ia.find_all('a', {'class': 'tournament-link'})
+        for ic in ib:
+            if name_low.lower() in ic['href'].lower():
+                thisArbitro = ia
+                break
+    for numff, ff in enumerate(thisArbitro.find_all('td')):
+        if numff >1:
+            listavacia_1.append(ff.contents[0])
+    arbitroDict[name] = listavacia_1
+    return arbitroDict
+
+
 def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there_is_data, margenDeError,printData, printDataForMaxProb):
     numHits = 0
     for partido in resultadosTotalDeReferencia:
+        dataArbitros = obtainArbitro(partido['Arbitro'])
         llaves = list(partido.keys())
         team_1 = getEquipo(llaves[0], listOfTeams)
         team_2 = getEquipo(llaves[1], listOfTeams)
-        pointsTeam_1 = team_1.puntosDeFuerza + team_2.puntosDeDebilidad
-        pointsTeam_2 = team_2.puntosDeFuerza + team_1.puntosDeDebilidad
+        pointsTeam_1 = (team_1.puntosDeFuerza + team_2.puntosDeDebilidad)*float(dataArbitros[partido['Arbitro']][0])/100
+
+        pointsTeam_2 = (team_2.puntosDeFuerza + team_1.puntosDeDebilidad)*float(dataArbitros[partido['Arbitro']][2])/100
         minimumP = min([pointsTeam_1, pointsTeam_2])
         if minimumP == 0:
             minimumP = 1
@@ -450,9 +479,9 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
 
 ###################################################################################################################################################################
 # INPUT DATA #
-URL_Ref = 'https://www.laliga.com/laliga-santander/resultados'
-in_this_link_there_are_results_Ref = False
-maxValueOfMatchsCalculated_Ref = 10
+URL_Ref = 'https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-23'
+in_this_link_there_are_results_Ref = True
+maxValueOfMatchsCalculated_Ref = 5
 
 ###################################################################################################################################################################
 listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
