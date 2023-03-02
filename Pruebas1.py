@@ -206,7 +206,6 @@ def metodoFuerza(iter, teamToCheck, teamToAddPoints, teamsCountedAlready, resetP
             continue
         iter -= 1
         teamsCountedAlready.append(G)
-        # valorDePuntosNuevo = round(max(valorDePuntos - 0.1, 0), 2)
         valorDePuntosNuevo = valorDePuntos*factorDegenerativo
         metodoFuerza(iter, G, teamToAddPoints, teamsCountedAlready, False, valorDePuntosNuevo,factorDegenerativo)
 
@@ -245,19 +244,18 @@ def getDataOfMaxEfficiency(URL, in_this_link_there_are_results, maxValueOfMatchs
     listOfTeams = getTeamsObjects(soupOfPage)
     #Loop last matches compare method
     previousJourneys_Repeticiones, linkPreviousJourneysRepeticiones = getPreviousJourneys(soupOfPage, maxValueOfMatchsCalculated)
-    for numLink, linkRep in enumerate(linkPreviousJourneysRepeticiones):
-        print('#####################################################################################################################################################################')
-        print('Entramos en la jornada: ' + str(previousJourneys_Repeticiones[numLink]))
-        soup_rep = getLinkHtml(linkRep)
-        results_rep = getResults(soup_rep, True)
-        getPorcentaje(soup_rep, maxValueOfMatchsCalculated, listOfTeams, results_rep, True)
-        print('/////////////////////////////////////////////////////////////////////////////////////////////////')
-        print('CAMBIO DE JORNADA QUE COMPROBAR')
-    #OFICIAL
-    # maxValueOfMatchsCalculated = maxValueOfMatchsCalculated + 1
-    # soupOfPage = getLinkHtml(URL)
-    # listOfTeams = getTeamsObjects(soupOfPage)
 
+    # # # for numLink, linkRep in enumerate(linkPreviousJourneysRepeticiones):
+    # # #     print('#####################################################################################################################################################################')
+    # # #     print('Entramos en la jornada: ' + str(previousJourneys_Repeticiones[numLink]))
+    # # #     soup_rep = getLinkHtml(linkRep)
+    # # #     results_rep = getResults(soup_rep, True)
+    # # #     getPorcentaje(soup_rep, maxValueOfMatchsCalculated, listOfTeams, results_rep, True)
+    # # #     print('/////////////////////////////////////////////////////////////////////////////////////////////////')
+    # # #     print('CAMBIO DE JORNADA QUE COMPROBAR')
+
+    #OFICIAL
+    print('REALIZAMOS LA ULTIMA JORNADA')
     resultadosJornadaDeReferencia = getResults(soupOfPage, in_this_link_there_are_results)
     getPorcentaje(soupOfPage, maxValueOfMatchsCalculated, listOfTeams, resultadosJornadaDeReferencia,
                   in_this_link_there_are_results)
@@ -268,12 +266,14 @@ def getDataOfMaxEfficiency(URL, in_this_link_there_are_results, maxValueOfMatchs
 
 def getResults(route, there_is_data):
     tableData = route.find('table', {'class': "styled__TableStyled-sc-43wy8s-1 iOBNZZ"})
-    eachRowMatch = tableData.find_all('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
+    eachRowMatch = tableData.find_all('tr', {'class': ['styled__TableRow-sc-43wy8s-4 lkicZz', 'styled__TableRow-sc-43wy8s-4 WrPER', 'styled__TableRow-sc-43wy8s-4 kSOWNM', 'styled__TableRow-sc-43wy8s-4 czleHG']})
     resultadosPartidos = []
-    for row in eachRowMatch:
+    for numruow, row in enumerate(eachRowMatch):
+        rowMatch = row.find('div', {'class': 'styled__MatchStyled-sc-2hkd8m-1 jVNhaC'})
         match = {}
-        results = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
-        teams = row.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+        results = rowMatch.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 fYuQIM'})
+        teams = rowMatch.find_all('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 hvREvZ'})
+        arbitro = row.find('p', {'class': 'styled__TextRegularStyled-sc-1raci4c-0 jbKUta'})
         lenOfTeams = len(teams)
         if there_is_data is True:
             for i in range(lenOfTeams):
@@ -281,6 +281,7 @@ def getResults(route, there_is_data):
         else:
             for i in range(lenOfTeams):
                 match[teams[i].contents[0]] = 'No Data'
+        match['Arbitro'] = arbitro.contents[0]
         resultadosPartidos.append(match)
     return resultadosPartidos
 
@@ -313,6 +314,7 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
     else:
         # resultados de la jornada de referencia
         resultadosTotal = lecturaDeJornada(soupOfTeams, journeyRefResults, listOfTeams, False, True, False)
+
     # resultados de las anteriores jornadas actualizandolo cada iteracion
     jornadasprevias, linkJP = getPreviousJourneys(soupOfTeams, itermax)
     print('/////////////////////////////////////////////////////////////')
@@ -322,7 +324,7 @@ def maxProbability(soupOfTeams, itermax, listOfTeams, journeyRefResults, there_i
         resultados = getResults(ruta, True)
         resultadosR = lecturaDeJornada(soupOfTeams, resultados, listOfTeams, True, False, False)
 
-    factoresDegenerativos = np.arange(-0.3, 0.95, 0.05)
+    factoresDegenerativos = np.arange(0.1, 0.95, 0.05)
     factoresDegenerativosPosibles = {}
     valorDePuntos_Deg = 1
     for numDeg in factoresDegenerativos:
@@ -357,7 +359,6 @@ def lecturaDeJornada(soupOfTeams, resultadosEstaJornada, listOfTeams, there_is_d
                 match['Resultado'] = 2
             if match[teams[0]] == match[teams[1]]:
                 match['Resultado'] = 'x'
-            match['Arbitro'] = arbitroSoup
         elif there_is_data is False and it_is_Reference is True:
             team_1.equiposQueHaGanado = []
             team_1.equiposQueHaPerdido = []
@@ -429,15 +430,20 @@ def obtainArbitro(name):
     listavacia_1 = []
     name_low = name.replace(' ', '-').lower()
     a = arbitroPage_Ref.find('div', {'id': 'referee-stats-alternate'}).find('tbody', {'id': 'referee-tournaments-table-body'}).find_all('tr')
+    thisArbitro = 'Maimon'
     for ia in a:
         ib = ia.find_all('a', {'class': 'tournament-link'})
         for ic in ib:
             if name_low.lower() in ic['href'].lower():
                 thisArbitro = ia
                 break
-    for numff, ff in enumerate(thisArbitro.find_all('td')):
-        if numff >1:
-            listavacia_1.append(ff.contents[0])
+    if thisArbitro == 'Maimon':
+        for im in range(3):
+            listavacia_1.append(33.3)
+    else:
+        for numff, ff in enumerate(thisArbitro.find_all('td')):
+            if numff >1:
+                listavacia_1.append(ff.contents[0])
     arbitroDict[name] = listavacia_1
     return arbitroDict
 
@@ -450,8 +456,7 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
         team_1 = getEquipo(llaves[0], listOfTeams)
         team_2 = getEquipo(llaves[1], listOfTeams)
         pointsTeam_1 = (team_1.puntosDeFuerza + team_2.puntosDeDebilidad)*float(dataArbitros[partido['Arbitro']][0])/100
-
-        pointsTeam_2 = (team_2.puntosDeFuerza + team_1.puntosDeDebilidad)*float(dataArbitros[partido['Arbitro']][2])/100
+        pointsTeam_2 = (team_2.puntosDeFuerza + team_1.puntosDeDebilidad)*float(dataArbitros[partido['Arbitro']][1])/100
         minimumP = min([pointsTeam_1, pointsTeam_2])
         if minimumP == 0:
             minimumP = 1
@@ -471,7 +476,7 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
                 numHits += 1
         else:
             if printData and printDataForMaxProb:
-                print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name)
+                print(team_1.name, round(pointsTeam_1_Normalized, 2), round(pointsTeam_2_Normalized, 2), team_2.name, partido['Arbitro'])
 
     porcentajeAcierto = 100 * numHits / len(resultadosTotalDeReferencia)
     return porcentajeAcierto, margenDeError
@@ -479,15 +484,15 @@ def calculatePointsAndPorcentaje(resultadosTotalDeReferencia, listOfTeams, there
 
 ###################################################################################################################################################################
 # INPUT DATA #
-URL_Ref = 'https://www.laliga.com/laliga-santander/resultados/2022-23/jornada-23'
-in_this_link_there_are_results_Ref = True
-maxValueOfMatchsCalculated_Ref = 5
+URL_Ref = 'https://www.laliga.com/laliga-smartbank/resultados'
+in_this_link_there_are_results_Ref = False
+maxValueOfMatchsCalculated_Ref = 9
 
 ###################################################################################################################################################################
 listOfPrimera = getDataOfMaxEfficiency(URL_Ref, in_this_link_there_are_results_Ref, maxValueOfMatchsCalculated_Ref)
 
-for i in listOfPrimera:
-    print(i.name, i.puntosDeFuerza, i.puntosDeDebilidad)
+# for i in listOfPrimera:
+#     print(i.name, i.puntosDeFuerza, i.puntosDeDebilidad)
 
 # END
 # Mejorar el programa añadiendo que me diga el mejor factorDegenerativo cogiendo los ultimos 10 partidos
